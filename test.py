@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import random
 
 import torch
 import torch.nn as nn
@@ -65,7 +66,7 @@ class Receiver(nn.Module):
 		self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
 		self.aff_transform = nn.Linear(HIDDEN_SIZE, n_image_features)#N_IMAGES_PER_ROUND why not?
 
-	def forward(self, m, images):
+	def forward(self, m):
 		# h0, c0
 		h = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
 		c = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
@@ -74,7 +75,7 @@ class Receiver(nn.Module):
 		m = m.permute(1, 0)
 
 		for w_idx in m:
-			emb = self.embedding(w_idx.long())
+			emb = self.embedding(w_idx)
 			h, c = self.lstm_cell(emb, (h, c))
 
 		return self.aff_transform(h)
@@ -90,22 +91,24 @@ class Model(nn.Module):
 	def forward(self, target, distractors, word_to_idx):#images, word_to_idx):
 		m = self.sender(target, word_to_idx[START_TOKEN])
 
-		print(m.shape)
+		# Images = target + distractors
+		# images = distractors
+		# images.append(target)
+		# random.shuffle(images)
+		# images = torch.stack(images, 1)
 
-		assert False, 'just stop here!'
-
-		images = None # target + distractors
-		r_transform = self.receiver(m, images)
+		r_transform = self.receiver(m) # g(.)
 
 		print(r_transform.shape)
 
-		#_, predictions = r_transform.max(1)
+		loss = 0
 
-		# loss = torch.max(0, 1.0 - images @ r_transform + ? @ r_transform)
+		r_transform = r_transform.permute(1,0)
 
-		assert False
+		for d in distractors:
+			loss += torch.max(torch.tensor(0.0), 1.0 - target @ r_transform + d @ r_transform)
 		
-		return 0 #loss
+		return loss
 
 
 # Load data
