@@ -19,7 +19,7 @@ HIDDEN_SIZE = 512
 BATCH_SIZE = 128
 MAX_SENTENCE_LENGTH = 5#13
 START_TOKEN = '<S>'
-TEMPERATURE = 1.2
+#TEMPERATURE = 1.2 only for ST-GS
 #N_IMAGES_PER_ROUND = BATCH_SIZE# 127 distractors + 1 target
 K = 2 # number of distractors
 
@@ -34,29 +34,27 @@ class Sender(nn.Module):
 		self.linear_probs = nn.Linear(HIDDEN_SIZE, vocab_size) # from a hidden state to the vocab
 
 	def forward(self, t, start_token_idx):
-		message = []
+		message = torch.zeros([BATCH_SIZE, MAX_SENTENCE_LENGTH], dtype=torch.long)
 
 		# h0, c0, w0
 		h = self.aff_transform(t) # BATCH_SIZE, HIDDEN_SIZE
 		c = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
 		w = self.embedding(torch.ones([BATCH_SIZE], dtype=torch.long) * start_token_idx)
 
-		while len(message) < MAX_SENTENCE_LENGTH: # or sampled <S>, but this is batched
+		for i in range(MAX_SENTENCE_LENGTH): # or sampled <S>, but this is batched
 			h, c = self.lstm_cell(w, (h, c))
 
 			p = F.softmax(self.linear_probs(h), dim=1)
 
-			rohc = RelaxedOneHotCategorical(TEMPERATURE, p)
-			sample = rohc.rsample() # Understand why rsample and not sample even though not ST-GS?
+			cat = Categorical(p)
+			w_idx = cat.sample() # rsample?
 
-			# Let's say we're doing greedy
-			_, w_idx = sample.max(1)
+			message[:,i] = w_idx
 
+			# For next iteration
 			w = self.embedding(torch.LongTensor(w_idx))
 
-			message.append(w_idx) # append(w)
-
-		return torch.stack(message, 1) # batch size x L X embedding dim
+		return message # batch size x L
 
 
 class Receiver(nn.Module):
@@ -89,10 +87,12 @@ class Model(nn.Module):
 		self.sender = Sender(n_image_features, vocab_size)
 		self.receiver = Receiver(n_image_features, vocab_size)
 
-	def forward(self, target, distractors, word_to_idx)#images, word_to_idx):
+	def forward(self, target, distractors, word_to_idx):#images, word_to_idx):
 		m = self.sender(target, word_to_idx[START_TOKEN])
 
 		print(m.shape)
+
+		assert False, 'just stop here!'
 
 		images = None # target + distractors
 		r_transform = self.receiver(m, images)
@@ -126,10 +126,10 @@ train_dataset = ImageDataset(train_features)
 valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 
 train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
-	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), BATCH_SIZE, False))
+	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), batch_size=BATCH_SIZE, drop_last=False))
 
-valid_data = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), BATCH_SIZE, False))
+valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
+	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=False))
 
 
 # Settings
