@@ -13,7 +13,9 @@ from torch.utils.data.sampler import BatchSampler
 
 from ImageDataset import ImageDataset, ImagesSampler
 
-EPOCHS = 1#1000
+from utils import AverageMeter
+
+EPOCHS = 2#1000
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 #VOCAB_SIZE = 10000 This comes from the data
@@ -55,7 +57,7 @@ class Sender(nn.Module):
 			# For next iteration
 			w = self.embedding(torch.LongTensor(w_idx))
 
-		return message # batch size x L
+		return message, cat.log_prob(w_idx)
 
 
 class Receiver(nn.Module):
@@ -89,26 +91,19 @@ class Model(nn.Module):
 		self.receiver = Receiver(n_image_features, vocab_size)
 
 	def forward(self, target, distractors, word_to_idx):#images, word_to_idx):
-		m = self.sender(target, word_to_idx[START_TOKEN])
-
-		# Images = target + distractors
-		# images = distractors
-		# images.append(target)
-		# random.shuffle(images)
-		# images = torch.stack(images, 1)
+		m, log_prob = self.sender(target, word_to_idx[START_TOKEN])
 
 		r_transform = self.receiver(m) # g(.)
 
-		print(r_transform.shape)
-
 		loss = 0
-
 		r_transform = r_transform.permute(1,0)
 
 		for d in distractors:
 			loss += torch.max(torch.tensor(0.0), 1.0 - target @ r_transform + d @ r_transform)
+
+		loss = -loss * log_prob # Does this make any sense?
 		
-		return loss
+		return torch.mean(loss)
 
 
 # Load data
@@ -143,9 +138,15 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 # Train
 
-counter = 0
+losses_meters = []
 
-for _ in range(EPOCHS):
+for e in range(EPOCHS):
+
+	### Remove #####
+	counter = 0
+
+	epoch_loss_meter = AverageMeter()
+
 	for d in train_data:
 		optimizer.zero_grad()
 
@@ -153,12 +154,21 @@ for _ in range(EPOCHS):
 	
 		loss = model(target, distractors, word_to_idx)
 
-		# loss.backward()
+		print(loss.item())
+		epoch_loss_meter.update(loss.item())
+
+		loss.backward()
 		
-		# optimizer.step()
+		optimizer.step()
 		
 		##### REMOVE ######
-		break
+		counter +=1
+		if counter == 10:
+			break
+
+	losses_meters.append(epoch_loss_meter)
+
+	print('Epoch {}, average loss: {}'.format(e, losses_meters[e].avg))
 
 
 
