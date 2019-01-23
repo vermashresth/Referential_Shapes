@@ -5,17 +5,18 @@ from torch.distributions.categorical import Categorical
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
-		embedding_dim, hidden_size, batch_size):
+		embedding_dim, hidden_size, batch_size, greedy=True):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
+		self.greedy = greedy
 		self.lstm_cell = nn.LSTMCell(embedding_dim, hidden_size)
 		self.aff_transform = nn.Linear(n_image_features, hidden_size)
 		self.embedding = nn.Embedding(vocab_size, embedding_dim)
 		self.linear_probs = nn.Linear(hidden_size, vocab_size) # from a hidden state to the vocab
 
-	def forward(self, t, start_token_idx, max_sentence_length, greedy=True):
+	def forward(self, t, start_token_idx, max_sentence_length):
 		message = torch.zeros([self.batch_size, max_sentence_length], dtype=torch.long)
 
 		# h0, c0, w0
@@ -28,8 +29,9 @@ class Sender(nn.Module):
 
 			p = F.softmax(self.linear_probs(h), dim=1)
 
-			if self.training or not self.greedy:
-				cat = Categorical(p)
+			cat = Categorical(p)
+
+			if self.training or not self.greedy:	
 				w_idx = cat.sample() # rsample?
 			else:
 				_, w_idx = torch.max(p, -1)

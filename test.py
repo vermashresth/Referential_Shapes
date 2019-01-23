@@ -8,7 +8,7 @@ from torch.utils.data.sampler import BatchSampler
 
 from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model
-from utils import AverageMeter
+from run import train_one_epoch, evaluate
 
 EPOCHS = 2#1000
 EMBEDDING_DIM = 256
@@ -53,37 +53,14 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 # Train
 
 losses_meters = []
+eval_losses_meters = []
 
 for e in range(EPOCHS):
-
-	### Remove #####
-	counter = 0
-
-	epoch_loss_meter = AverageMeter()
-
-	for d in train_data:
-		optimizer.zero_grad()
-
-		target, distractors = d
-	
-		loss = model(target, distractors, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
-
-		epoch_loss_meter.update(loss.item())
-
-		loss.backward()
-		
-		optimizer.step()
-		
-		##### REMOVE ######
-		counter +=1
-		if counter == 10:
-			break
-
+	epoch_loss_meter = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	losses_meters.append(epoch_loss_meter)
 
-	print('Epoch {}, average loss: {}'.format(e, losses_meters[e].avg))
+	eval_loss_meter = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+	eval_losses_meters.append(eval_loss_meter)
 
-
-
-
-
+	print('Epoch {}, average train loss: {}, average val loss: {}'.format(
+		e, losses_meters[e].avg, eval_losses_meters[e].avg))
