@@ -5,7 +5,6 @@ import random
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-#from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from torch.distributions.categorical import Categorical
 
 from torch.utils.data import DataLoader
@@ -18,12 +17,9 @@ from utils import AverageMeter
 EPOCHS = 2#1000
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-#VOCAB_SIZE = 10000 This comes from the data
 BATCH_SIZE = 128
 MAX_SENTENCE_LENGTH = 5#13
 START_TOKEN = '<S>'
-#TEMPERATURE = 1.2 only for ST-GS
-#N_IMAGES_PER_ROUND = BATCH_SIZE# 127 distractors + 1 target
 K = 2 # number of distractors
 
 
@@ -90,7 +86,7 @@ class Model(nn.Module):
 		self.sender = Sender(n_image_features, vocab_size)
 		self.receiver = Receiver(n_image_features, vocab_size)
 
-	def forward(self, target, distractors, word_to_idx):#images, word_to_idx):
+	def forward(self, target, distractors, word_to_idx):
 		m, log_prob = self.sender(target, word_to_idx[START_TOKEN])
 
 		r_transform = self.receiver(m) # g(.)
