@@ -32,7 +32,7 @@ class Sender(nn.Module):
 		self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
 		self.linear_probs = nn.Linear(HIDDEN_SIZE, vocab_size) # from a hidden state to the vocab
 
-	def forward(self, t, start_token_idx):
+	def forward(self, t, start_token_idx, greedy=True):
 		message = torch.zeros([BATCH_SIZE, MAX_SENTENCE_LENGTH], dtype=torch.long)
 
 		# h0, c0, w0
@@ -45,8 +45,11 @@ class Sender(nn.Module):
 
 			p = F.softmax(self.linear_probs(h), dim=1)
 
-			cat = Categorical(p)
-			w_idx = cat.sample() # rsample?
+			if self.training or not self.greedy:
+				cat = Categorical(p)
+				w_idx = cat.sample() # rsample?
+			else:
+				_, w_idx = torch.max(p, -1)
 
 			message[:,i] = w_idx
 
@@ -62,7 +65,7 @@ class Receiver(nn.Module):
 
 		self.lstm_cell = nn.LSTMCell(EMBEDDING_DIM, HIDDEN_SIZE)
 		self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
-		self.aff_transform = nn.Linear(HIDDEN_SIZE, n_image_features)#N_IMAGES_PER_ROUND why not?
+		self.aff_transform = nn.Linear(HIDDEN_SIZE, n_image_features)
 
 	def forward(self, m):
 		# h0, c0
@@ -97,7 +100,7 @@ class Model(nn.Module):
 		for d in distractors:
 			loss += torch.max(torch.tensor(0.0), 1.0 - target @ r_transform + d @ r_transform)
 
-		loss = -loss * log_prob # Does this make any sense?
+		loss = -loss * log_prob
 		
 		return torch.mean(loss)
 
