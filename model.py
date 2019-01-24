@@ -90,7 +90,6 @@ class Model(nn.Module):
 		r_transform = r_transform.permute(1,0)
 
 		target_score = target @ r_transform # batch size x batch size
-		
 
 		distractors_scores = []
 
@@ -100,12 +99,8 @@ class Model(nn.Module):
 			loss += torch.max(torch.tensor(0.0), 1.0 - target_score + d_score)
 
 		loss = -loss * log_prob
-
-		print(loss)
-
-		loss = torch.mean(loss)#, 1)
-
-		print(loss)
+		loss = torch.mean(loss, 1)
+		loss = torch.mean(loss)
 
 		# Calculate accuracy
 		target_prob = torch.exp(target_score)
@@ -122,5 +117,7 @@ class Model(nn.Module):
 		_, max_idx = torch.max(all_probs, 1)
 
 		accuracy = max_idx == 0
-		
+		accuracy = accuracy.to(dtype=torch.float32)
+		accuracy = torch.mean(accuracy)
+
 		return loss, accuracy

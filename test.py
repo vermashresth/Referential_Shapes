@@ -67,5 +67,5 @@ for e in range(EPOCHS):
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
-	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy" {}'.format(
+	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))

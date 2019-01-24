@@ -53,4 +53,4 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length):
 		if counter == 10:
 			break
 
-	return epoch_loss_meter
+	return loss_meter, acc_meter
