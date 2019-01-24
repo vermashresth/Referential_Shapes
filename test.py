@@ -1,6 +1,8 @@
 import pickle
 import numpy as np
 import random
+from datetime import datetime
+import os
 
 import torch
 from torch.utils.data import DataLoader
@@ -18,6 +20,13 @@ MAX_SENTENCE_LENGTH = 5#13
 START_TOKEN = '<S>'
 K = 2 # number of distractors
 
+dumps_dir = './dumps'
+if not os.path.exists(dumps_dir):
+	os.mkdir(dumps_dir)
+
+model_id = '{:%m_%d_%H_%M}'.format(datetime.now())
+current_model_dir = '{}/{}'.format(dumps_dir, model_id)
+os.mkdir(current_model_dir)
 
 # Load data
 with open("data/mscoco/dict.pckl", "rb") as f:
@@ -69,3 +78,10 @@ for e in range(EPOCHS):
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+
+	# Dump model and stats
+	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
