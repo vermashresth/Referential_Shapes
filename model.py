@@ -75,6 +75,7 @@ class Model(nn.Module):
 		embedding_dim, hidden_size, batch_size):
 		super().__init__()
 
+		self.batch_size = batch_size
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size)
 		self.receiver = Receiver(n_image_features, vocab_size,
@@ -88,9 +89,40 @@ class Model(nn.Module):
 		loss = 0
 		r_transform = r_transform.permute(1,0)
 
+		target_score = target @ r_transform
+
+		distractors_scores = []
+
 		for d in distractors:
-			loss += torch.max(torch.tensor(0.0), 1.0 - target @ r_transform + d @ r_transform)
+			d_score = d @ r_transform
+			distractors_scores.append(d_score)
+			loss += torch.max(torch.tensor(0.0), 1.0 - target_score + d_score)
 
 		loss = -loss * log_prob
+		loss = torch.mean(loss, 1)
+
+		# Calculate accuracy
+		target_prob = torch.exp(target_score)
+		target_prob = torch.mean(target_prob, 1)
+
+		all_probs = torch.zeros((self.batch_size, 1 + len(distractors)))
+		all_probs[:,0] = target_prob
+
+		for i, score in enumerate(distractors_scores):
+			dist_prob = torch.exp(score)
+			dist_prob = torch.mean(dist_prob, 1)
+			all_probs[:,i+1] = dist_prob
+
+		_, max_idx = torch.max(all_probs, 1)
+
+		print(all_probs)
+		print(max_idx)
+
+		accuracy = max_idx == 0
+
+		print(accuracy)
+
+		assert False
+
 		
-		return torch.mean(loss)
+		return loss, accuracy

@@ -55,6 +55,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 losses_meters = []
 eval_losses_meters = []
 
+accuracy_meters = []
+eval_accuracy_meters = []
+
 for e in range(EPOCHS):
 	epoch_loss_meter = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	losses_meters.append(epoch_loss_meter)
