@@ -48,3 +48,4 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length, use_gpu
 		acc_meter.update(acc.item())
 
 	return loss_meter, acc_meter
+

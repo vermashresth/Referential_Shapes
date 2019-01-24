@@ -18,7 +18,7 @@ HIDDEN_SIZE = 512
 BATCH_SIZE = 128
 MAX_SENTENCE_LENGTH = 5#13
 START_TOKEN = '<S>'
-K = 2 # number of distractors
+K = 3 # number of distractors
 
 # Load data
 with open("data/mscoco/dict.pckl", "rb") as f:
