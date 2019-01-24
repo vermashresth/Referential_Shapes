@@ -59,11 +59,13 @@ accuracy_meters = []
 eval_accuracy_meters = []
 
 for e in range(EPOCHS):
-	epoch_loss_meter = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+	epoch_loss_meter, epoch_acc_meter = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	losses_meters.append(epoch_loss_meter)
+	accuracy_meters.append(epoch_acc_meter)
 
-	eval_loss_meter = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+	eval_loss_meter, eval_acc_meter = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	eval_losses_meters.append(eval_loss_meter)
+	eval_accuracy_meters.append(eval_acc_meter)
 
-	print('Epoch {}, average train loss: {}, average val loss: {}'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg))
+	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy" {}'.format(
+		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))

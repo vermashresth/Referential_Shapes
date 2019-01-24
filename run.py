@@ -6,16 +6,18 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 	### Remove #####
 	counter = 0
 
-	epoch_loss_meter = AverageMeter()
+	loss_meter = AverageMeter()
+	acc_meter = AverageMeter()
 
 	for d in data:
 		optimizer.zero_grad()
 
 		target, distractors = d
 	
-		loss = model(target, distractors, word_to_idx, start_token, max_sentence_length)
+		loss, acc = model(target, distractors, word_to_idx, start_token, max_sentence_length)
 
-		epoch_loss_meter.update(loss.item())
+		loss_meter.update(loss.item())
+		acc_meter.update(acc.item())
 
 		loss.backward()
 		
@@ -26,7 +28,7 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 		if counter == 10:
 			break
 
-	return epoch_loss_meter
+	return loss_meter, acc_meter
 
 
 def evaluate(model, data, word_to_idx, start_token, max_sentence_length):
@@ -35,14 +37,16 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length):
 	### Remove #####
 	counter = 0
 
-	epoch_loss_meter = AverageMeter()
+	loss_meter = AverageMeter()
+	acc_meter = AverageMeter()
 
 	for d in data:
 		target, distractors = d
 
-		loss = model(target, distractors, word_to_idx, start_token, max_sentence_length)
+		loss, acc = model(target, distractors, word_to_idx, start_token, max_sentence_length)
 
-		epoch_loss_meter.update(loss.item())
+		loss_meter.update(loss.item())
+		acc_meter.update(acc.item())
 
 		##### REMOVE ######
 		counter +=1
