@@ -1,10 +1,14 @@
 from utils import AverageMeter
+import torch
 
 def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_sentence_length, use_gpu):
 	model.train()
 
 	loss_meter = AverageMeter()
 	acc_meter = AverageMeter()
+	messages = []
+
+	count = 0
 
 	for d in data:
 		optimizer.zero_grad()
@@ -16,16 +20,21 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 			for d in distractors:
 				d = d.cuda()
 
-		loss, acc = model(target, distractors, word_to_idx, start_token, max_sentence_length)
+		loss, acc, m = model(target, distractors, word_to_idx, start_token, max_sentence_length)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
+		messages.append(m)
 
 		loss.backward()
 		
 		optimizer.step()
 
-	return loss_meter, acc_meter
+		count += 1
+		if count == 10:
+			break
+
+	return loss_meter, acc_meter, torch.cat(messages, 0)
 
 
 def evaluate(model, data, word_to_idx, start_token, max_sentence_length, use_gpu):
@@ -33,6 +42,9 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length, use_gpu
 
 	loss_meter = AverageMeter()
 	acc_meter = AverageMeter()
+	messages = []
+
+	count = 0
 
 	for d in data:
 		target, distractors = d
@@ -42,10 +54,15 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length, use_gpu
 			for d in distractors:
 				d = d.cuda()
 
-		loss, acc = model(target, distractors, word_to_idx, start_token, max_sentence_length)
+		loss, acc, m = model(target, distractors, word_to_idx, start_token, max_sentence_length)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
+		messages.append(m)
 
-	return loss_meter, acc_meter
+		count += 1
+		if count == 5:
+			break
+
+	return loss_meter, acc_meter, torch.cat(messages, 0)
 

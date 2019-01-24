@@ -74,23 +74,29 @@ accuracy_meters = []
 eval_accuracy_meters = []
 
 for e in range(EPOCHS):
-	epoch_loss_meter, epoch_acc_meter = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
-	eval_loss_meter, eval_acc_meter = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
-	# Dump model and stats
+	# Dump model
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+
+	# Dump stats
 	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+
+	# Dump messages
+	pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 # Evaluate best model on test data
@@ -110,8 +116,8 @@ test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_da
 test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=False))
 
-_, test_acc_meter = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
 
-print('Test accuracy: {}'.format(test_acc_meter.avg)
+print('Test accuracy: {}'.format(test_acc_meter.avg))
 
 pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p', 'wb'))

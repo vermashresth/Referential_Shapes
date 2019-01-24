@@ -18,22 +18,22 @@ class Sender(nn.Module):
 
 		self.reset_parameters()
 
-    def reset_parameters(self):
-        # nn.init.normal_(self.embd, 0.0, 0.1)
+	def reset_parameters(self):
+		# nn.init.normal_(self.embd, 0.0, 0.1)
 
-        nn.init.normal_(self.aff_transform.weight, 0, 0.1)
-        nn.init.constant_(self.aff_transform.bias, 0)
+		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
+		nn.init.constant_(self.aff_transform.bias, 0)
+		
+		nn.init.constant_(self.linear_probs.weight, 0)
+		nn.init.constant_(self.linear_probs.bias, 0)
 
-        nn.init.constant_(self.linear_probs.weight, 0)
-        nn.init.constant_(self.linear_probs.bias, 0)
-
-        nn.init.xavier_uniform_(self.lstm_cell.weight_ih)
-        nn.init.orthogonal_(self.lstm_cell.weight_hh)
-        nn.init.constant_(self.lstm_cell.bias_ih, val=0)
-        # # cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
-        # # add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
-        nn.init.constant_(self.lstm_cell.bias_hh, val=0)
-        nn.init.constant_(self.lstm_cell.bias_hh[self.hid_dim:2 * self.hid_dim], val=1)
+		nn.init.xavier_uniform_(self.lstm_cell.weight_ih)
+		nn.init.orthogonal_(self.lstm_cell.weight_hh)
+		nn.init.constant_(self.lstm_cell.bias_ih, val=0)
+       	# # cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
+       	# # add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
+		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
+		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
 
 	def forward(self, t, start_token_idx, max_sentence_length):
 		message = torch.zeros([self.batch_size, max_sentence_length], dtype=torch.long)
@@ -76,19 +76,19 @@ class Receiver(nn.Module):
 
 		self.reset_parameters()
 
-    def reset_parameters(self):
-        # nn.init.normal_(self.embd, 0.0, 0.1)
+	def reset_parameters(self):
+		# nn.init.normal_(self.embd, 0.0, 0.1)
 
-        nn.init.normal_(self.aff_transform.weight, 0, 0.1)
-        nn.init.constant_(self.aff_transform.bias, 0)
+		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
+		nn.init.constant_(self.aff_transform.bias, 0)
 
-        nn.init.xavier_uniform_(self.lstm_cell.weight_ih)
-        nn.init.orthogonal_(self.lstm_cell.weight_hh)
-        nn.init.constant_(self.lstm_cell.bias_ih, val=0)
-        # # cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
-        # # add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
-        nn.init.constant_(self.lstm_cell.bias_hh, val=0)
-        nn.init.constant_(self.lstm_cell.bias_hh[self.hid_dim:2 * self.hid_dim], val=1)
+		nn.init.xavier_uniform_(self.lstm_cell.weight_ih)
+		nn.init.orthogonal_(self.lstm_cell.weight_hh)
+		nn.init.constant_(self.lstm_cell.bias_ih, val=0)
+		# # cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
+		# # add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
+		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
+		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
 
 	def forward(self, m):
 		# h0, c0
@@ -155,4 +155,4 @@ class Model(nn.Module):
 		accuracy = accuracy.to(dtype=torch.float32)
 		accuracy = torch.mean(accuracy)
 
-		return loss, accuracy
+		return loss, accuracy, m
