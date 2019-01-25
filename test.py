@@ -16,7 +16,7 @@ EPOCHS = 1000
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128
-MAX_SENTENCE_LENGTH = 5#13
+MAX_SENTENCE_LENGTH = 13
 START_TOKEN = '<S>'
 K = 3 # number of distractors
 
@@ -57,7 +57,7 @@ os.mkdir(current_model_dir)
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE)
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 
 if use_gpu:
 	model = model.cuda()
@@ -74,11 +74,11 @@ accuracy_meters = []
 eval_accuracy_meters = []
 
 for e in range(EPOCHS):
-	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
-	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
