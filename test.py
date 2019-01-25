@@ -11,6 +11,7 @@ from torch.utils.data.sampler import BatchSampler
 from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
+from utils import get_lr_scheduler
 
 debugging = False
 
@@ -67,7 +68,7 @@ else:
 
 current_model_dir = '{}/{}'.format(dumps_dir, model_id)
 
-if not os.path.exists(dumps_dir):
+if not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
 
 
