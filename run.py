@@ -21,8 +21,8 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 
 		loss, acc, m = model(target, distractors, word_to_idx, start_token, max_sentence_length)
 
-		if debugging:
-			print(m)
+		# if debugging:
+		# 	print(m)
 
 
 		loss_meter.update(loss.item())

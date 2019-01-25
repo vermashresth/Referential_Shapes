@@ -144,14 +144,17 @@ class Model(nn.Module):
 		r_transform = self.receiver(m) # g(.)
 
 		loss = 0
-		r_transform = r_transform.permute(1,0)
 
-		target_score = target @ r_transform # batch size x batch size
+		target = target.view(self.batch_size, 1, -1)
+		r_transform = r_transform.view(self.batch_size, -1, 1)
+
+		target_score = torch.bmm(target, r_transform).squeeze() #scalar
 
 		distractors_scores = []
 
 		for d in distractors:
-			d_score = d @ r_transform
+			d = d.view(self.batch_size, 1, -1)
+			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
 			zero_tensor = torch.tensor(0.0)
 			if self.use_gpu:
@@ -160,19 +163,19 @@ class Model(nn.Module):
 			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
 		loss = -loss * log_prob
-		loss = torch.sum(loss, 1)
+		# loss = torch.sum(loss, 1)
 		loss = torch.mean(loss)
 
 		# Calculate accuracy
 		target_prob = torch.exp(target_score)
-		target_prob = torch.mean(target_prob, 1)
+		# target_prob = torch.sum(target_prob, 1)
 
 		all_probs = torch.zeros((self.batch_size, 1 + len(distractors)))
 		all_probs[:,0] = target_prob
 
 		for i, score in enumerate(distractors_scores):
 			dist_prob = torch.exp(score)
-			dist_prob = torch.sum(dist_prob, 1)
+			# dist_prob = torch.sum(dist_prob, 1)
 			all_probs[:,i+1] = dist_prob
 
 		_, max_idx = torch.max(all_probs, 1)

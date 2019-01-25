@@ -12,7 +12,7 @@ from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
 
-debugging = True
+debugging = False
 
 EPOCHS = 1000 if not debugging else 10
 EMBEDDING_DIM = 256
@@ -20,7 +20,7 @@ HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
 MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 START_TOKEN = '<S>'
-K = 99 if not debugging else 4 # number of distractors
+K = 3 #if not debugging else 4 # number of distractors
 
 # Load data
 with open("data/mscoco/dict.pckl", "rb") as f:
