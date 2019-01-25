@@ -12,20 +12,22 @@ from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
 
-EPOCHS = 1000
+debugging = True
+
+EPOCHS = 1000 if not debugging else 10
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128
-MAX_SENTENCE_LENGTH = 13
+BATCH_SIZE = 128 if not debugging else 4
+MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 START_TOKEN = '<S>'
-K = 99 # number of distractors
+K = 99 if not debugging else 4 # number of distractors
 
 # Load data
 with open("data/mscoco/dict.pckl", "rb") as f:
     d = pickle.load(f)
     word_to_idx = d["word_to_idx"] #dictionary w->i
     idx_to_word = d["idx_to_word"] #list of words
-    bound_idx = word_to_idx["<S>"]
+    bound_idx = word_to_idx["<S>"] # last word in vocab
 
 train_features = np.load('data/mscoco/train_features.npy')
 valid_features = np.load('data/mscoco/valid_features.npy')

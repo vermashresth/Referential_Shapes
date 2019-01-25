@@ -3,6 +3,9 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.distributions.categorical import Categorical
 
+debugging = True
+
+
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
 		embedding_dim, hidden_size, batch_size, use_gpu, greedy=True):
@@ -157,7 +160,7 @@ class Model(nn.Module):
 			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
 		loss = -loss * log_prob
-		loss = torch.mean(loss, 1)
+		loss = torch.sum(loss, 1)
 		loss = torch.mean(loss)
 
 		# Calculate accuracy
@@ -169,7 +172,7 @@ class Model(nn.Module):
 
 		for i, score in enumerate(distractors_scores):
 			dist_prob = torch.exp(score)
-			dist_prob = torch.mean(dist_prob, 1)
+			dist_prob = torch.sum(dist_prob, 1)
 			all_probs[:,i+1] = dist_prob
 
 		_, max_idx = torch.max(all_probs, 1)
