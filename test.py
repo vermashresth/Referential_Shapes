@@ -14,6 +14,8 @@ from run import train_one_epoch, evaluate
 
 debugging = False
 
+prev_model_file_name = None #'dumps/01_25_16_48/01_25_16_48_844_model'
+
 EPOCHS = 1000 if not debugging else 10
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
@@ -53,29 +55,54 @@ dumps_dir = './dumps'
 if not os.path.exists(dumps_dir):
 	os.mkdir(dumps_dir)
 
-model_id = '{:%m_%d_%H_%M}'.format(datetime.now())
+if prev_model_file_name == None:
+	model_id = '{:%m_%d_%H_%M}'.format(datetime.now())
+	starting_epoch = 0
+else:
+	last_backslash = prev_model_file_name.rfind('/')
+	last_underscore = prev_model_file_name.rfind('_')
+	second_last_underscore = prev_model_file_name[:last_underscore].rfind('_')
+	model_id = prev_model_file_name[last_backslash+1:second_last_underscore]
+	starting_epoch = int(prev_model_file_name[second_last_underscore+1:last_underscore])
+
 current_model_dir = '{}/{}'.format(dumps_dir, model_id)
-os.mkdir(current_model_dir)
+
+if not os.path.exists(dumps_dir):
+	os.mkdir(current_model_dir)
 
 
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 
+if prev_model_file_name is not None:
+	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
+	model.load_state_dict(state)
+
+
 if use_gpu:
 	model = model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-
+lr_scheduler = get_lr_scheduler(optimizer)
 
 # Train
+if prev_model_file_name == None:
+	losses_meters = []
+	eval_losses_meters = []
 
-losses_meters = []
-eval_losses_meters = []
+	accuracy_meters = []
+	eval_accuracy_meters = []
+else:
+	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
+	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
-accuracy_meters = []
-eval_accuracy_meters = []
+	accuracy_meters = pickle.load(open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
+	eval_accuracy_meters = pickle.load(open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
-for e in range(EPOCHS):
+
+for epoch in range(EPOCHS):
+	e = epoch + starting_epoch
+
 	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
@@ -86,6 +113,8 @@ for e in range(EPOCHS):
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+
+	lr_scheduler.step(eval_acc_meter.avg)
 
 	# Dump model
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))

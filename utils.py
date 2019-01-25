@@ -1,3 +1,5 @@
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 class AverageMeter:
     def __init__(self):
         self.value = None
@@ -17,3 +19,13 @@ class AverageMeter:
         self.sum += value * n
         self.count += n
         self.avg = self.sum / self.count
+
+
+def get_lr_scheduler(optimizer):
+    def reduce_lr(self, epoch):
+        ReduceLROnPlateau._reduce_lr(self, epoch)
+        
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.2, patience=10, threshold=0.005,
+                                     threshold_mode="rel")
+    lr_scheduler._reduce_lr = partial(reduce_lr, lr_scheduler)
+    return lr_scheduler
