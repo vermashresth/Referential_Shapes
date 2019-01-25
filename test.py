@@ -27,6 +27,10 @@ with open("data/mscoco/dict.pckl", "rb") as f:
     idx_to_word = d["idx_to_word"] #list of words
     bound_idx = word_to_idx["<S>"]
 
+print(bound_idx)
+print(idx_to_word[2632])
+assert False
+
 train_features = np.load('data/mscoco/train_features.npy')
 valid_features = np.load('data/mscoco/valid_features.npy')
 # 2d arrays of 4096 features
@@ -38,10 +42,10 @@ train_dataset = ImageDataset(train_features)
 valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 
 train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
-	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), batch_size=BATCH_SIZE, drop_last=False))
+	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), batch_size=BATCH_SIZE, drop_last=True))
 
 valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=False))
+	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
 
 # Settings
@@ -114,7 +118,7 @@ if use_gpu:
 test_features = np.load('data/mscoco/test_features.npy')
 test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=False))
+	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
 _, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
 
