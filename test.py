@@ -18,7 +18,7 @@ HIDDEN_SIZE = 512
 BATCH_SIZE = 128
 MAX_SENTENCE_LENGTH = 13
 START_TOKEN = '<S>'
-K = 3 # number of distractors
+K = 99 # number of distractors
 
 # Load data
 with open("data/mscoco/dict.pckl", "rb") as f:
@@ -26,10 +26,6 @@ with open("data/mscoco/dict.pckl", "rb") as f:
     word_to_idx = d["word_to_idx"] #dictionary w->i
     idx_to_word = d["idx_to_word"] #list of words
     bound_idx = word_to_idx["<S>"]
-
-print(bound_idx)
-print(idx_to_word[2632])
-assert False
 
 train_features = np.load('data/mscoco/train_features.npy')
 valid_features = np.load('data/mscoco/valid_features.npy')
@@ -107,7 +103,7 @@ for e in range(EPOCHS):
 
 best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 best_model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE)
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 best_model.load_state_dict(state)
@@ -120,8 +116,8 @@ test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_da
 test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
-_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, use_gpu)
+_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
-pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p', 'wb'))
+pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
