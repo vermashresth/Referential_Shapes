@@ -13,7 +13,7 @@ from model import Sender, Receiver, Model, BaselineNN
 from run import train_one_epoch, evaluate
 # from utils import get_lr_scheduler
 
-debugging = True
+debugging = False
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
@@ -75,7 +75,7 @@ if not os.path.exists(current_model_dir):
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 
-baseline = BaselineNN(n_image_features * (K+1), hidden_size)
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE)
 
 
 if prev_model_file_name is not None:
@@ -155,7 +155,7 @@ best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoc
 state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 best_model.load_state_dict(state)
 
-baseline = BaselineNN(n_image_features * (K+1), hidden_size)
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE)
 baseline_state = torch.load(best_model_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
 baseline.load_state_dict(baseline_state)
 

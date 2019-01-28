@@ -135,13 +135,9 @@ class BaselineNN(nn.Module):
 		for d in distractors:
 			input.append(d)
 
-		torch.cat(input, 1)
+		input = torch.cat(input, 1)
 
-		print(input.shape)
-
-		assert False
-
-		return sigma(self.h2o(h(self.h2h(h(self.i2h(input))))))
+		return sigma(self.h2o(h(self.h2h(h(self.i2h(input)))))).squeeze()
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
@@ -184,7 +180,7 @@ class Model(nn.Module):
 			reward += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
 		loss = (reward - baseline_value) * -log_prob
-
+		
 		loss = torch.mean(loss)
 
 		# Calculate accuracy
@@ -203,8 +199,4 @@ class Model(nn.Module):
 		accuracy = accuracy.to(dtype=torch.float32)
 		accuracy = torch.mean(accuracy)
 
-		# Baseline loss
-		mse = nn.MSELoss()
-		baseline_loss = mse(baseline_value, reward)
-
-		return loss, accuracy, m, baseline_loss
+		return loss, accuracy, m, reward.data

@@ -1,7 +1,8 @@
 from utils import AverageMeter
 import torch
+import torch.nn as nn
 
-debugging = True
+debugging = False
 
 
 def train_one_epoch(
@@ -26,7 +27,7 @@ def train_one_epoch(
 
 		baseline_value = baseline(target, distractors)
 
-		loss, acc, m, baseline_loss = model(target, distractors, word_to_idx, start_token, max_sentence_length, baseline_value)
+		loss, acc, m, reward = model(target, distractors, word_to_idx, start_token, max_sentence_length, baseline_value.data)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
@@ -34,6 +35,11 @@ def train_one_epoch(
 
 		loss.backward()
 		optimizer.step()
+
+
+		# Baseline loss
+		mse = nn.MSELoss()
+		baseline_loss = mse(baseline_value, reward)
 
 		baseline_loss.backward()		
 		baseline_optimizer.step()
@@ -63,7 +69,7 @@ def evaluate(
 
 		baseline_value = baseline(target, distractors)
 
-		loss, acc, m, _ = model(target, distractors, word_to_idx, start_token, max_sentence_length, baseline_value)
+		loss, acc, m, _ = model(target, distractors, word_to_idx, start_token, max_sentence_length, baseline_value.data)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
