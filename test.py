@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torch.utils.data.sampler import BatchSampler
 
 from ImageDataset import ImageDataset, ImagesSampler
-from model import Sender, Receiver, Model
+from model import Sender, Receiver, Model, BaselineNN
 from run import train_one_epoch, evaluate
 # from utils import get_lr_scheduler
 
@@ -91,6 +91,7 @@ if use_gpu:
 	baseline = baseline.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+baseline_optimizer = torch.optim.Adam(baseline.parameters(), lr=0.001)
 # lr_scheduler = get_lr_scheduler(optimizer)
 
 # Train
@@ -111,11 +112,17 @@ else:
 for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
-	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(
+		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
+		baseline, baseline_optimizer)
+
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
-	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
+		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
+		baseline)
+
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
@@ -148,6 +155,10 @@ best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoc
 state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 best_model.load_state_dict(state)
 
+baseline = BaselineNN(n_image_features * (K+1), hidden_size)
+baseline_state = torch.load(best_model_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
+baseline.load_state_dict(baseline_state)
+
 if use_gpu:
 	best_model = best_model.cuda()
 
@@ -156,7 +167,7 @@ test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_da
 test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
-_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+_, test_acc_meter, _, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 

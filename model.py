@@ -141,7 +141,7 @@ class BaselineNN(nn.Module):
 
 		assert False
 
-		return sigma(self.h2o(h(self.h2h(h(self.i2h(input)))))) # Why only target? distractors?
+		return sigma(self.h2o(h(self.h2h(h(self.i2h(input))))))
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
@@ -155,7 +155,7 @@ class Model(nn.Module):
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)		
 
-	def forward(self, target, distractors, word_to_idx, start_token, max_sentence_length):
+	def forward(self, target, distractors, word_to_idx, start_token, max_sentence_length, baseline_value):
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
@@ -164,7 +164,7 @@ class Model(nn.Module):
 
 		r_transform = self.receiver(m) # g(.)
 
-		loss = 0
+		reward = 0
 
 		target = target.view(self.batch_size, 1, -1)
 		r_transform = r_transform.view(self.batch_size, -1, 1)
@@ -181,26 +181,20 @@ class Model(nn.Module):
 			if self.use_gpu:
 				zero_tensor = zero_tensor.cuda()
 
-			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
+			reward += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
-	
-		# loss = loss - baseline # So now loss can have negatives?
+		loss = (reward - baseline_value) * -log_prob
 
-		loss = loss * -log_prob
-
-		# loss = torch.sum(loss, 1)
 		loss = torch.mean(loss)
 
 		# Calculate accuracy
 		target_prob = torch.exp(target_score)
-		# target_prob = torch.sum(target_prob, 1)
 
 		all_probs = torch.zeros((self.batch_size, 1 + len(distractors)))
 		all_probs[:,0] = target_prob
 
 		for i, score in enumerate(distractors_scores):
 			dist_prob = torch.exp(score)
-			# dist_prob = torch.sum(dist_prob, 1)
 			all_probs[:,i+1] = dist_prob
 
 		_, max_idx = torch.max(all_probs, 1)
@@ -209,4 +203,8 @@ class Model(nn.Module):
 		accuracy = accuracy.to(dtype=torch.float32)
 		accuracy = torch.mean(accuracy)
 
-		return loss, accuracy, m
+		# Baseline loss
+		mse = nn.MSELoss()
+		baseline_loss = mse(baseline_value, reward)
+
+		return loss, accuracy, m, baseline_loss
