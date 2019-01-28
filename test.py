@@ -11,13 +11,13 @@ from torch.utils.data.sampler import BatchSampler
 from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
-from utils import get_lr_scheduler
+# from utils import get_lr_scheduler
 
-debugging = False
+debugging = True
 
-prev_model_file_name = None #'dumps/01_25_16_48/01_25_16_48_844_model'
+prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 10
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -73,7 +73,8 @@ if not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, K + 1,use_gpu)
+
 
 if prev_model_file_name is not None:
 	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
@@ -84,7 +85,7 @@ if use_gpu:
 	model = model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-lr_scheduler = get_lr_scheduler(optimizer)
+# lr_scheduler = get_lr_scheduler(optimizer)
 
 # Train
 if prev_model_file_name == None:
@@ -115,7 +116,7 @@ for epoch in range(EPOCHS):
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
-	lr_scheduler.step(eval_acc_meter.avg)
+	# lr_scheduler.step(eval_acc_meter.avg)
 
 	# Dump model
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))

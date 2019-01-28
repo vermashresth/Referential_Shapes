@@ -3,8 +3,6 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.distributions.categorical import Categorical
 
-debugging = True
-
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
@@ -121,10 +119,33 @@ class Receiver(nn.Module):
 
 		return self.aff_transform(h)
 
+class BaselineNN(nn.Module):
+	def __init__(self, all_image_features, hidden_size):
+		super().__init__()
+
+		self.i2h = nn.Linear(all_image_features, hidden_size)
+		self.h2h = nn.Linear(hidden_size, hidden_size)
+		self.h2o = nn.Linear(hidden_size, 1)
+
+	def forward(self, target, distractors):
+		h = nn.Tanh()
+		sigma = nn.Sigmoid()
+
+		input = [target] # target + distractors
+		for d in distractors:
+			input.append(d)
+
+		torch.cat(input, 0)
+
+		print(input.shape)
+
+		assert False
+
+		return sigma(self.h2o(h(self.h2h(h(self.i2h(input)))))) # Why only target? distractors?
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, batch_size, use_gpu):
+		embedding_dim, hidden_size, batch_size, n_images, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
@@ -133,6 +154,9 @@ class Model(nn.Module):
 			embedding_dim, hidden_size, batch_size, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)
+
+		self.baseline = BaselineNN(n_image_features * n_images, hidden_size)
+		
 
 	def forward(self, target, distractors, word_to_idx, start_token, max_sentence_length):
 		if self.use_gpu:
@@ -162,7 +186,13 @@ class Model(nn.Module):
 
 			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
-		loss = -loss * log_prob
+		# Baseline
+		#baseline = self.baseline_nn(target)
+	
+		# loss = loss - baseline # So now loss can have negatives?
+
+		loss = loss * -log_prob
+
 		# loss = torch.sum(loss, 1)
 		loss = torch.mean(loss)
 
