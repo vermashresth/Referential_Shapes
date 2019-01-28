@@ -73,16 +73,22 @@ if not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, K + 1,use_gpu)
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+
+baseline = BaselineNN(n_image_features * (K+1), hidden_size)
 
 
 if prev_model_file_name is not None:
 	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
 	model.load_state_dict(state)
 
+	baseline_state = torch.load(prev_model_file_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
+	baseline.load_state_dict(baseline_state)
+
 
 if use_gpu:
 	model = model.cuda()
+	baseline = baseline.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 # lr_scheduler = get_lr_scheduler(optimizer)
@@ -118,8 +124,9 @@ for epoch in range(EPOCHS):
 
 	# lr_scheduler.step(eval_acc_meter.avg)
 
-	# Dump model
+	# Dump models
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+	torch.save(baseline.state_dict(), '{}/{}_{}_baseline'.format(current_model_dir, model_id, e))
 
 	# Dump stats
 	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))

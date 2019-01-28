@@ -135,7 +135,7 @@ class BaselineNN(nn.Module):
 		for d in distractors:
 			input.append(d)
 
-		torch.cat(input, 0)
+		torch.cat(input, 1)
 
 		print(input.shape)
 
@@ -145,7 +145,7 @@ class BaselineNN(nn.Module):
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, batch_size, n_images, use_gpu):
+		embedding_dim, hidden_size, batch_size, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
@@ -153,10 +153,7 @@ class Model(nn.Module):
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, use_gpu)
-
-		self.baseline = BaselineNN(n_image_features * n_images, hidden_size)
-		
+			embedding_dim, hidden_size, batch_size, use_gpu)		
 
 	def forward(self, target, distractors, word_to_idx, start_token, max_sentence_length):
 		if self.use_gpu:
@@ -186,8 +183,6 @@ class Model(nn.Module):
 
 			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
-		# Baseline
-		#baseline = self.baseline_nn(target)
 	
 		# loss = loss - baseline # So now loss can have negatives?
 
