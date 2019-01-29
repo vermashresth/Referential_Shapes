@@ -120,14 +120,19 @@ class Receiver(nn.Module):
 		return self.aff_transform(h)
 
 class BaselineNN(nn.Module):
-	def __init__(self, all_image_features, hidden_size):
+	def __init__(self, all_image_features, hidden_size, use_gpu):
 		super().__init__()
 
+		self.use_gpu = use_gpu
 		self.i2h = nn.Linear(all_image_features, hidden_size)
 		self.h2h = nn.Linear(hidden_size, hidden_size)
 		self.h2o = nn.Linear(hidden_size, 1)
 
 	def forward(self, target, distractors):
+		if self.use_gpu:
+			target = target.cuda()
+			distractors = [d.cuda() for d in distractors]
+		
 		h = nn.Tanh()
 		sigma = nn.Sigmoid()
 
