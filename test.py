@@ -75,7 +75,7 @@ if not os.path.exists(current_model_dir):
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 
-baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE)
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -155,19 +155,20 @@ best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoc
 state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 best_model.load_state_dict(state)
 
-baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE)
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
 baseline_state = torch.load(best_model_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
 baseline.load_state_dict(baseline_state)
 
 if use_gpu:
 	best_model = best_model.cuda()
+	baseline = baseline.cuda()
 
 test_features = np.load('data/mscoco/test_features.npy')
 test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
-_, test_acc_meter, _, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
+_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
