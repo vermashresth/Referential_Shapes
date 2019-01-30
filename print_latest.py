@@ -3,10 +3,10 @@ import sys
 import pickle
 import os
 
-assert len(sys.argv) > 1, 'Input dumps dir, model id, train file id'
-dir = '{}/{}'.format(sys.argv[1], sys.argv[2])
-model_id = sys.argv[2]
-file_id = sys.argv[3]
+assert len(sys.argv) == 3, 'Input dumps dir/model id, file id'
+dir = sys.argv[1]
+model_id = sys.argv[1].split('/')[1]
+file_id = 'losses_meters' if 'loss' in sys.argv[2] else ('accuracy_meters' if 'acc' in sys.argv[2] else None)
 
 #01_25_08_07_2_losses_meters.p
 
@@ -18,6 +18,8 @@ latest_model_file_name = file_names[-1]
 last_underscore = latest_model_file_name.rfind('_')
 second_last_underscore = latest_model_file_name[:last_underscore].rfind('_')
 epoch = int(latest_model_file_name[second_last_underscore+1:last_underscore])
+
+print('Epoch {}'.format(epoch))
 
 train_file_name = '{}/{}_{}_{}.p'.format(dir, model_id, epoch, file_id)
 val_file_name = '{}/{}_{}_eval_{}.p'.format(dir, model_id, epoch, file_id)
@@ -33,17 +35,3 @@ if 'messages' in file_id:
 else:
     print('Train', [p.avg for p in train_data])
     print('Val', [p.avg for p in val_data])
-
-
-
-#iterations = list(range(len(train_losses)))
-
-#plt.plot(iterations, train_losses, color='blue')
-#plt.plot(iterations, val_losses, color='green')
-#plt.legend(('Train', 'Validation'))
-#plt.xlabel('Iteration')
-#plt.ylabel('Running avg loss')
-#plt.title('Loss curves')
-##plt.show()
-#file_id = train_losses_file[train_losses_file.rfind('_'):-2]
-#plt.savefig('{}/losses_curves_{}.png'.format(folder, file_id))

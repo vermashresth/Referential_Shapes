@@ -3,10 +3,9 @@ import sys
 import pickle
 import os
 
-assert len(sys.argv) > 1, 'Input dumps folder, model id, file id'
-dumps_folder = sys.argv[1]
-model_id = sys.argv[2]
-file_id = sys.argv[3]
+assert len(sys.argv) == 3, 'Input dumps folder/model id, file id'
+dumps_folder, model_id = sys.argv[1].split('/')
+file_id = 'losses_meters' if 'loss' in sys.argv[2] else ('accuracy_meters' if 'acc' in sys.argv[2] else None)
 
 #01_25_08_07_92_losses_meters.p
 
@@ -24,6 +23,11 @@ epoch = int(latest_model_file_name[second_last_underscore+1:last_underscore])
 
 train_file = '{}/{}_{}_{}.p'.format(folder, model_id, epoch, file_id)
 val_file = '{}/{}_{}_eval_{}.p'.format(folder, model_id, epoch, file_id)
+
+if not os.path.exists(train_file):
+    epoch -= 1
+    train_file = '{}/{}_{}_{}.p'.format(folder, model_id, epoch, file_id)
+    val_file = '{}/{}_{}_eval_{}.p'.format(folder, model_id, epoch, file_id)
 
 train_data = pickle.load(open(train_file,'rb'))
 val_data = pickle.load(open(val_file,'rb'))
