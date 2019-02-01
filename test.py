@@ -8,7 +8,7 @@ import torch
 from model import Sender, Receiver, Model, BaselineNN
 from run import train_one_epoch, evaluate
 from utils import get_lr_scheduler
-from dataloader import load_data
+from dataloader import load_dictionaries, load_shapes_data #,load_data
 
 use_gpu = torch.cuda.is_available()
 
@@ -22,9 +22,16 @@ MAX_SENTENCE_LENGTH = 13 if use_gpu else 5
 START_TOKEN = '<S>'
 K = 3  # number of distractors
 
+# Load vocab
+word_to_idx, idx_to_word, bound_idx = load_dictionaries()
+vocab_size = len(word_to_idx) # 10000
+
 # Load data
-(word_to_idx, idx_to_word, bound_idx, vocab_size, n_image_features, 
-	train_data, valid_data, test_data) = load_data(BATCH_SIZE, K)
+# n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
+
+load_shapes_data()
+
+
 
 # Settings
 dumps_dir = './dumps'
