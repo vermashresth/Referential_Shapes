@@ -2,7 +2,7 @@ from utils import AverageMeter
 import torch
 import torch.nn as nn
 
-debugging = False
+debugging = not torch.cuda.is_available()
 
 
 def train_one_epoch(

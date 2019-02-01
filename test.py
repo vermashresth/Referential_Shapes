@@ -5,53 +5,28 @@ from datetime import datetime
 import os
 
 import torch
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import BatchSampler
-
-from ImageDataset import ImageDataset, ImagesSampler
 from model import Sender, Receiver, Model, BaselineNN
 from run import train_one_epoch, evaluate
-# from utils import get_lr_scheduler
+from utils import get_lr_scheduler
+from dataloader import load_data
 
-debugging = False
+use_gpu = torch.cuda.is_available()
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
+EPOCHS = 1000 if use_gpu else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 4
-MAX_SENTENCE_LENGTH = 13 if not debugging else 5
+BATCH_SIZE = 128 if use_gpu else 4
+MAX_SENTENCE_LENGTH = 13 if use_gpu else 5
 START_TOKEN = '<S>'
-K = 3 #if not debugging else 4 # number of distractors
+K = 3  # number of distractors
 
 # Load data
-with open("data/mscoco/dict.pckl", "rb") as f:
-    d = pickle.load(f)
-    word_to_idx = d["word_to_idx"] #dictionary w->i
-    idx_to_word = d["idx_to_word"] #list of words
-    bound_idx = word_to_idx["<S>"] # last word in vocab
-
-train_features = np.load('data/mscoco/train_features.npy')
-valid_features = np.load('data/mscoco/valid_features.npy')
-# 2d arrays of 4096 features
-
-vocab_size = len(word_to_idx) # 10000
-n_image_features = valid_features.shape[1] # 4096
-
-train_dataset = ImageDataset(train_features)
-valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
-
-train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
-	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), batch_size=BATCH_SIZE, drop_last=True))
-
-valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
-
+(word_to_idx, idx_to_word, bound_idx, vocab_size, n_image_features, 
+	train_data, valid_data, test_data) = load_data(BATCH_SIZE, K)
 
 # Settings
-use_gpu = torch.cuda.is_available()
-
 dumps_dir = './dumps'
 if not os.path.exists(dumps_dir):
 	os.mkdir(dumps_dir)
@@ -90,7 +65,7 @@ if use_gpu:
 	model = model.cuda()
 	baseline = baseline.cuda()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 baseline_optimizer = torch.optim.Adam(baseline.parameters(), lr=0.001)
 # lr_scheduler = get_lr_scheduler(optimizer)
 
@@ -163,10 +138,6 @@ if use_gpu:
 	best_model = best_model.cuda()
 	baseline = baseline.cuda()
 
-test_features = np.load('data/mscoco/test_features.npy')
-test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
-test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(test_dataset, K, shuffle=False), batch_size=BATCH_SIZE, drop_last=True))
 
 _, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
 

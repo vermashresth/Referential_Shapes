@@ -21,7 +21,7 @@ class Sender(nn.Module):
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		# nn.init.normal_(self.embd, 0.0, 0.1)
+		nn.init.normal_(self.embedding.weight, 0.0, 0.1)
 
 		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
 		nn.init.constant_(self.aff_transform.bias, 0)
@@ -88,7 +88,7 @@ class Receiver(nn.Module):
 		self.reset_parameters()
 
 	def reset_parameters(self):
-		# nn.init.normal_(self.embd, 0.0, 0.1)
+		nn.init.normal_(self.embedding.weight, 0.0, 0.1)
 
 		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
 		nn.init.constant_(self.aff_transform.bias, 0)
