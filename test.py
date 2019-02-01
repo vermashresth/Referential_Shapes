@@ -1,163 +1,153 @@
 import pickle
 import numpy as np
+import random
+from datetime import datetime
+import os
 
 import torch
-import torch.nn as nn
-from torch.nn import functional as F
-#from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
-from torch.distributions.categorical import Categorical
+from model import Sender, Receiver, Model, BaselineNN
+from run import train_one_epoch, evaluate
+from utils import get_lr_scheduler
+from dataloader import load_dictionaries, load_shapes_data #,load_data
 
-from torch.utils.data import DataLoader
-from torch.utils.data.sampler import BatchSampler
+use_gpu = torch.cuda.is_available()
 
-from ImageDataset import ImageDataset, ImagesSampler
+prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1#1000
+EPOCHS = 1000 if use_gpu else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-#VOCAB_SIZE = 10000 This comes from the data
-BATCH_SIZE = 128
-MAX_SENTENCE_LENGTH = 5#13
+BATCH_SIZE = 128 if use_gpu else 4
+MAX_SENTENCE_LENGTH = 13 if use_gpu else 5
 START_TOKEN = '<S>'
-TEMPERATURE = 1.2
-#N_IMAGES_PER_ROUND = BATCH_SIZE# 127 distractors + 1 target
-K = 2 # number of distractors
+K = 3  # number of distractors
 
-
-class Sender(nn.Module):
-	def __init__(self, n_image_features, vocab_size):
-		super().__init__()
-
-		self.lstm_cell = nn.LSTMCell(EMBEDDING_DIM, HIDDEN_SIZE)
-		self.aff_transform = nn.Linear(n_image_features, HIDDEN_SIZE)
-		self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
-		self.linear_probs = nn.Linear(HIDDEN_SIZE, vocab_size) # from a hidden state to the vocab
-
-	def forward(self, t, start_token_idx):
-		message = []
-
-		# h0, c0, w0
-		h = self.aff_transform(t) # BATCH_SIZE, HIDDEN_SIZE
-		c = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
-		w = self.embedding(torch.ones([BATCH_SIZE], dtype=torch.long) * start_token_idx)
-
-		while len(message) < MAX_SENTENCE_LENGTH: # or sampled <S>, but this is batched
-			h, c = self.lstm_cell(w, (h, c))
-
-			p = F.softmax(self.linear_probs(h), dim=1)
-
-			rohc = RelaxedOneHotCategorical(TEMPERATURE, p)
-			sample = rohc.rsample() # Understand why rsample and not sample even though not ST-GS?
-
-			# Let's say we're doing greedy
-			_, w_idx = sample.max(1)
-
-			w = self.embedding(torch.LongTensor(w_idx))
-
-			message.append(w_idx) # append(w)
-
-		return torch.stack(message, 1) # batch size x L X embedding dim
-
-
-class Receiver(nn.Module):
-	def __init__(self, n_image_features, vocab_size):
-		super().__init__()
-
-		self.lstm_cell = nn.LSTMCell(EMBEDDING_DIM, HIDDEN_SIZE)
-		self.embedding = nn.Embedding(vocab_size, EMBEDDING_DIM)
-		self.aff_transform = nn.Linear(HIDDEN_SIZE, n_image_features)#N_IMAGES_PER_ROUND why not?
-
-	def forward(self, m, images):
-		# h0, c0
-		h = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
-		c = torch.zeros([BATCH_SIZE, HIDDEN_SIZE])
-
-		# Need to change to batch dim second to iterate over tokens in message
-		m = m.permute(1, 0)
-
-		for w_idx in m:
-			emb = self.embedding(w_idx.long())
-			h, c = self.lstm_cell(emb, (h, c))
-
-		return self.aff_transform(h)
-
-
-class Model(nn.Module):
-	def __init__(self, n_image_features, vocab_size):
-		super().__init__()
-
-		self.sender = Sender(n_image_features, vocab_size)
-		self.receiver = Receiver(n_image_features, vocab_size)
-
-	def forward(self, target, distractors, word_to_idx)#images, word_to_idx):
-		m = self.sender(target, word_to_idx[START_TOKEN])
-
-		print(m.shape)
-
-		images = None # target + distractors
-		r_transform = self.receiver(m, images)
-
-		print(r_transform.shape)
-
-		#_, predictions = r_transform.max(1)
-
-		# loss = torch.max(0, 1.0 - images @ r_transform + ? @ r_transform)
-
-		assert False
-		
-		return 0 #loss
-
+# Load vocab
+word_to_idx, idx_to_word, bound_idx = load_dictionaries()
+vocab_size = len(word_to_idx) # 10000
 
 # Load data
-with open("data/mscoco/dict.pckl", "rb") as f:
-    d = pickle.load(f)
-    word_to_idx = d["word_to_idx"] #dictionary w->i
-    idx_to_word = d["idx_to_word"] #list of words
-    bound_idx = word_to_idx["<S>"]
+# n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
 
-train_features = np.load('data/mscoco/train_features.npy')
-valid_features = np.load('data/mscoco/valid_features.npy')
-# 2d arrays of 4096 features
+load_shapes_data()
 
-vocab_size = len(word_to_idx) # 10000
-n_image_features = valid_features.shape[1] # 4096
-
-train_dataset = ImageDataset(train_features)
-valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
-
-train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
-	batch_sampler=BatchSampler(ImagesSampler(train_dataset, K, shuffle=True), BATCH_SIZE, False))
-
-valid_data = DataLoader(valid_dataset, batch_size=BATCH_SIZE, num_workers=8, pin_memory=True,
-	batch_sampler=BatchSampler(ImagesSampler(valid_dataset, K, shuffle=False), BATCH_SIZE, False))
 
 
 # Settings
-model = Model(n_image_features, vocab_size)
+dumps_dir = './dumps'
+if not os.path.exists(dumps_dir):
+	os.mkdir(dumps_dir)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+if prev_model_file_name == None:
+	model_id = '{:%m_%d_%H_%M}'.format(datetime.now())
+	starting_epoch = 0
+else:
+	last_backslash = prev_model_file_name.rfind('/')
+	last_underscore = prev_model_file_name.rfind('_')
+	second_last_underscore = prev_model_file_name[:last_underscore].rfind('_')
+	model_id = prev_model_file_name[last_backslash+1:second_last_underscore]
+	starting_epoch = int(prev_model_file_name[second_last_underscore+1:last_underscore])
 
+current_model_dir = '{}/{}'.format(dumps_dir, model_id)
+
+if not os.path.exists(current_model_dir):
+	os.mkdir(current_model_dir)
+
+
+model = Model(n_image_features, vocab_size,
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
+
+
+if prev_model_file_name is not None:
+	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
+	model.load_state_dict(state)
+
+	baseline_state = torch.load(prev_model_file_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
+	baseline.load_state_dict(baseline_state)
+
+
+if use_gpu:
+	model = model.cuda()
+	baseline = baseline.cuda()
+
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+baseline_optimizer = torch.optim.Adam(baseline.parameters(), lr=0.001)
+# lr_scheduler = get_lr_scheduler(optimizer)
 
 # Train
+if prev_model_file_name == None:
+	losses_meters = []
+	eval_losses_meters = []
 
-counter = 0
+	accuracy_meters = []
+	eval_accuracy_meters = []
+else:
+	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
+	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
-for _ in range(EPOCHS):
-	for d in train_data:
-		optimizer.zero_grad()
-
-		target, distractors = d
-	
-		loss = model(target, distractors, word_to_idx)
-
-		# loss.backward()
-		
-		# optimizer.step()
-		
-		##### REMOVE ######
-		break
+	accuracy_meters = pickle.load(open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
+	eval_accuracy_meters = pickle.load(open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
 
+for epoch in range(EPOCHS):
+	e = epoch + starting_epoch
+
+	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(
+		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
+		baseline, baseline_optimizer)
+
+	losses_meters.append(epoch_loss_meter)
+	accuracy_meters.append(epoch_acc_meter)
+
+	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
+		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
+		baseline)
+
+	eval_losses_meters.append(eval_loss_meter)
+	eval_accuracy_meters.append(eval_acc_meter)
+
+	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
+		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+
+	# lr_scheduler.step(eval_acc_meter.avg)
+
+	# Dump models
+	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+	torch.save(baseline.state_dict(), '{}/{}_{}_baseline'.format(current_model_dir, model_id, e))
+
+	# Dump stats
+	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+
+	# Dump messages
+	pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
+# Evaluate best model on test data
 
+best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
+best_model = Model(n_image_features, vocab_size,
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
+state = torch.load(best_model_name, map_location= lambda storage, location: storage)
+best_model.load_state_dict(state)
+
+baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
+baseline_state = torch.load(best_model_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
+baseline.load_state_dict(baseline_state)
+
+if use_gpu:
+	best_model = best_model.cuda()
+	baseline = baseline.cuda()
+
+
+_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
+
+print('Test accuracy: {}'.format(test_acc_meter.avg))
+
+pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
