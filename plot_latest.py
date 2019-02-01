@@ -37,7 +37,7 @@ iterations = list(range(len(train_data)))
 plt.plot(iterations, [d.avg for d in train_data], color='blue')
 plt.plot(iterations, [d.avg for d in val_data], color='green')
 plt.legend(('Train', 'Validation'))
-plt.xlabel('Iteration')
+plt.xlabel('Epoch')
 
 metric = file_id[:file_id.rfind('_')]
 
