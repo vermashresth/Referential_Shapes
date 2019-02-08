@@ -65,7 +65,7 @@ class Sender(nn.Module):
 			else:
 				_, w_idx = torch.max(p, -1)
 
-			message[:,i] = w_idx
+			message[:,i] = w_idx # WHy doesnt this ocntain the start symbol????!!!! BUG BUG BUG BUG
 
 			# For next iteration
 			w = self.embedding(w_idx)

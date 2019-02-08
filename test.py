@@ -7,8 +7,8 @@ import os
 import torch
 from model import Sender, Receiver, Model, BaselineNN
 from run import train_one_epoch, evaluate
-from utils import get_lr_scheduler
-from dataloader import load_dictionaries, load_shapes_data #,load_data
+from utils import EarlyStopping #get_lr_scheduler
+from dataloader import load_dictionaries, load_shapes_data,load_data
 
 use_gpu = torch.cuda.is_available()
 
@@ -27,9 +27,9 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries()
 vocab_size = len(word_to_idx) # 10000
 
 # Load data
-# n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
+n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
 
-load_shapes_data()
+# load_shapes_data()
 
 
 
@@ -75,6 +75,7 @@ if use_gpu:
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 baseline_optimizer = torch.optim.Adam(baseline.parameters(), lr=0.001)
 # lr_scheduler = get_lr_scheduler(optimizer)
+es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
 # Train
 if prev_model_file_name == None:
@@ -112,6 +113,7 @@ for epoch in range(EPOCHS):
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
 	# lr_scheduler.step(eval_acc_meter.avg)
+	es.step(eval_acc_meter.avg)
 
 	# Dump models
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
@@ -126,6 +128,11 @@ for epoch in range(EPOCHS):
 	# Dump messages
 	pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+
+
+    if es.is_converged:
+        print("Converged in epoch {}".format(e))
+        break
 
 
 # Evaluate best model on test data

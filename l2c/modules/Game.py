@@ -13,7 +13,7 @@ class Game(nn.Module):
         device = image_f.device
         batch_size = image_f.shape[0]
 
-        entropy, x = self.sender(image_f, greedy)
+        entropy, x, log_prob = self.sender(image_f, greedy)
 
         predicted_f = self.receiver(x)
 
@@ -24,14 +24,14 @@ class Game(nn.Module):
         
         distractors_scores = []
 
-        loss = 0
+        reward = 0
         for d in distractors:
             d = d.view(batch_size, 1, -1)#.to(device=device)
             d_score = T.bmm(d, predicted_f).squeeze()
             distractors_scores.append(d_score)
             zero_tensor = T.tensor(0.0, device=device)
 
-            loss += T.max(zero_tensor, margin - target_score + d_score)
+            reward += T.max(zero_tensor, margin - target_score + d_score)
 
         all_scores = T.zeros((batch_size, 1 + len(distractors)), device=device)
         all_scores[:,0] = target_score
@@ -46,6 +46,7 @@ class Game(nn.Module):
         accuracy = max_idx == 0
         accuracy = accuracy.to(dtype=T.float32)
 
+        loss = reward * -log_prob
 
         return T.mean(loss), T.mean(accuracy), T.mean(entropy)
 
