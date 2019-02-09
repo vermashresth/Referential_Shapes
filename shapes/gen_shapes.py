@@ -142,25 +142,18 @@ def get_image(shape, color, n=1, nOtherShapes=0, shouldOthersBeSame=False):
 
     return Image(shapes, colors, sizes, data)
 
-# def gen_images(query):
-#     data = []
-#     i = 0
-#     while i < N_QUERY_INSTS * 5 and len(data) < N_QUERY_INSTS:
-#         i += 1
-#         image = sample_image()
-#         if result is not None and result != 0:
-#             data.append((query, image))
-
-#     if len(data) == N_QUERY_INSTS: # and len(results) > 1:
-#         return data
-#     else:
-#         return None
-
 if __name__ == "__main__":
+
+    # From Serhii's original experiment
+    train_size = 18626
+    val_size = 2069
+    test_size = 10126
 
     train_data = []
     val_data = []
     test_data = []
+
+
 
     train_data.append(get_image(SHAPE_TRIANGLE, COLOR_GREEN))
 
