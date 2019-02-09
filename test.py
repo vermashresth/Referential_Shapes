@@ -89,7 +89,7 @@ else:
 for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
-	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(
+	epoch_loss_meter, epoch_acc_meter = train_one_epoch(
 		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 	losses_meters.append(epoch_loss_meter)
