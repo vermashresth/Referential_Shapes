@@ -5,10 +5,11 @@ from datetime import datetime
 import os
 
 import torch
-from model import Sender, Receiver, Model, BaselineNN
+from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping #get_lr_scheduler
-from dataloader import load_dictionaries, load_shapes_data,load_data
+from dataloader import load_dictionaries, load_shapes_data, load_data
+
 
 use_gpu = torch.cuda.is_available()
 
@@ -57,23 +58,16 @@ if not os.path.exists(current_model_dir):
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
 
-baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
-
 
 if prev_model_file_name is not None:
 	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
 	model.load_state_dict(state)
 
-	baseline_state = torch.load(prev_model_file_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
-	baseline.load_state_dict(baseline_state)
-
 
 if use_gpu:
 	model = model.cuda()
-	baseline = baseline.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-baseline_optimizer = torch.optim.Adam(baseline.parameters(), lr=0.001)
 # lr_scheduler = get_lr_scheduler(optimizer)
 es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
@@ -96,15 +90,13 @@ for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
 	epoch_loss_meter, epoch_acc_meter, messages = train_one_epoch(
-		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
-		baseline, baseline_optimizer)
+		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH,
-		baseline)
+		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
@@ -117,7 +109,6 @@ for epoch in range(EPOCHS):
 
 	# Dump models
 	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
-	torch.save(baseline.state_dict(), '{}/{}_{}_baseline'.format(current_model_dir, model_id, e))
 
 	# Dump stats
 	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
@@ -126,13 +117,14 @@ for epoch in range(EPOCHS):
 	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 	# Dump messages
-	pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+	#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
+	if es.is_converged:
+		print("Converged in epoch {}".format(e))
+		break
 
-    if es.is_converged:
-        print("Converged in epoch {}".format(e))
-        break
+
 
 
 # Evaluate best model on test data
@@ -144,16 +136,10 @@ best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoc
 state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 best_model.load_state_dict(state)
 
-baseline = BaselineNN(n_image_features * (K+1), HIDDEN_SIZE, use_gpu)
-baseline_state = torch.load(best_model_name.replace('model', 'baseline'), map_location= lambda storage, location: storage)
-baseline.load_state_dict(baseline_state)
-
 if use_gpu:
 	best_model = best_model.cuda()
-	baseline = baseline.cuda()
 
-
-_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH, baseline)
+_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
