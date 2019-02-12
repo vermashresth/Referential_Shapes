@@ -39,19 +39,40 @@ def load_data(batch_size, k):
 	return n_image_features, train_data, valid_data, test_data
 
 
-def load_shapes_data():
-	train_features = np.load('data/train.tiny.input.npy') #'data/train.large.input.npy'
-	valid_features = np.load('data/val.input.npy')
-	test_features = np.load('data/test.input.npy')
+def load_shapes_data(batch_size, k):
+	folder = 'normal_dist'
+
+	train_features = np.load('shapes/{}/train.large.input.npy'.format(folder)) #'data/train.large.input.npy'
+	valid_features = np.load('shapes/{}/val.input.npy'.format(folder))
+	test_features = np.load('shapes/{}/test.input.npy'.format(folder))
+
+	train_features = train_features.astype(np.float32)
+	valid_features = valid_features.astype(np.float32)
+	test_features = test_features.astype(np.float32)
+
+	n_train_examples = len(train_features)
+	n_val_examples = len(valid_features)
+	n_test_examples = len(test_features)
+
+	train_features = np.reshape(train_features, (n_train_examples, -1))
+	valid_features = np.reshape(valid_features, (n_val_examples, -1))
+	test_features = np.reshape(test_features, (n_test_examples, -1))
 
 	n_image_features = valid_features.shape[1]
 
-	print(n_image_features)
-	print(valid_features.shape)
-	print(valid_features)
+	train_dataset = ImageDataset(train_features)
+	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
+	test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 
-	assert False
+	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))
 
-	return n_image_features
+	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+
+	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+
+	return n_image_features, train_data, valid_data, test_data
 
 
