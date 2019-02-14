@@ -13,6 +13,11 @@ from dataloader import load_dictionaries, load_shapes_data, load_data
 
 use_gpu = torch.cuda.is_available()
 
+seed = 42
+torch.manual_seed(seed)
+if use_gpu:
+	torch.cuda.manual_seed(seed)
+
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
 EPOCHS = 1000 if use_gpu else 2
@@ -28,9 +33,9 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries() #### wait, why?
 vocab_size = len(word_to_idx) # 10000
 
 # Load data
-# n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
+n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
 
-n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
+# n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
 
 # Settings
 dumps_dir = './dumps'
@@ -95,6 +100,10 @@ for epoch in range(EPOCHS):
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
 		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+
+	print(eval_messages.shape)
+
+	assert False, 'is this correct?'
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
