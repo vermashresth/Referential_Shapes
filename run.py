@@ -12,9 +12,6 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 	loss_meter = AverageMeter()
 	acc_meter = AverageMeter()
 
-	if debugging:
-		count = 0
-
 	for d in data:
 		optimizer.zero_grad()
 
@@ -30,9 +27,7 @@ def train_one_epoch(model, data, optimizer, word_to_idx, start_token, max_senten
 
 
 		if debugging:
-			count += 1
-			if count == 50:
-				break
+			break
 
 	return loss_meter, acc_meter
 
@@ -44,7 +39,9 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length):
 	acc_meter = AverageMeter()
 	messages = []
 
+	count  = 0
 	for d in data:
+		count += 1
 		target, distractors = d
 
 		loss, acc, m = model(target, distractors, word_to_idx, start_token, max_sentence_length)
@@ -52,9 +49,9 @@ def evaluate(model, data, word_to_idx, start_token, max_sentence_length):
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
 		messages.append(m)
-
+		
 		if debugging:
 			break
-
+	
 	return loss_meter, acc_meter, torch.cat(messages, 0)
 
