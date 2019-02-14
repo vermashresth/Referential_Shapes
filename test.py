@@ -137,8 +137,9 @@ best_model.load_state_dict(state)
 if use_gpu:
 	best_model = best_model.cuda()
 
-_, test_acc_meter, _ = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+_, test_acc_meter, test_messages = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
 pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
