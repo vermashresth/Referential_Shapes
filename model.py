@@ -146,12 +146,12 @@ class Model(nn.Module):
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)		
 
-	def forward(self, target, distractors, word_to_idx, start_token, max_sentence_length):
+	def forward(self, target, distractors, start_token_idx, max_sentence_length):
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
 
-		m = self.sender(target, word_to_idx[start_token], max_sentence_length)
+		m = self.sender(target, start_token_idx, max_sentence_length)
 
 		r_transform = self.receiver(m) # g(.)
 
