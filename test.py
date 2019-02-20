@@ -33,9 +33,9 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries() #### wait, why?
 vocab_size = len(word_to_idx) # 10000
 
 # Load data
-n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
+#n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
 
-# n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
+n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
 
 # Settings
 dumps_dir = './dumps'
