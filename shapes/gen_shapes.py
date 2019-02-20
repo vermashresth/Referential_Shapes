@@ -3,7 +3,7 @@
 import numpy as np
 import os
 
-from generate_dataset import get_datasets, get_dataset_unbalanced
+from generate_dataset import get_datasets, get_dataset_balanced
 
 N_TRAIN_TINY    = 1
 N_TRAIN_SMALL = 10
@@ -15,15 +15,15 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 if __name__ == "__main__":
 
-    folder_name = 'normal_dist'
+    folder_name = 'balanced'
     k = 3
 
     # From Serhii's original experiment
-    train_size = 18626
-    val_size = 2069
-    test_size = 10126
+    train_size = 74504
+    val_size = 8279
+    test_size = 40504
 
-    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, get_dataset_unbalanced)
+    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, get_dataset_balanced)
 
     train_data_tiny = train_data[:N_TRAIN_TINY]
     train_data_small = train_data[:N_TRAIN_SMALL]

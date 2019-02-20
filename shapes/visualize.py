@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-npy_file = 'images/train.tiny.input.npy'
+folder = 'balanced'
+npy_file = '{}/test.input.npy'.format(folder)
 
-img = np.load(npy_file)[0]
-# print(img.shape)
+img = np.load(npy_file)[5]
+print(img.shape)
 img = np.transpose(img, (2, 0, 1))
 b, g, r = img[0,...], img[1,...], img[2,...]
 # print(b.shape)

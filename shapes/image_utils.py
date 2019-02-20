@@ -70,40 +70,42 @@ class Image:
         self.cheat_data = cheat_data
 
 
-def sample_image():
-    data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
-    cheat_data = np.zeros((6, 3, 3))
-    surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-    ctx = cairo.Context(surf)
-    ctx.set_source_rgb(0., 0., 0.)
-    ctx.paint()
+# def sample_image():
+#     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
+#     cheat_data = np.zeros((6, 3, 3))
+#     surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
+#     ctx = cairo.Context(surf)
+#     ctx.set_source_rgb(0., 0., 0.)
+#     ctx.paint()
 
-    shapes = [[None for c in range(3)] for r in range(3)]
-    colors = [[None for c in range(3)] for r in range(3)]
-    sizes = [[None for c in range(3)] for r in range(3)]
+#     shapes = [[None for c in range(3)] for r in range(3)]
+#     colors = [[None for c in range(3)] for r in range(3)]
+#     sizes = [[None for c in range(3)] for r in range(3)]
 
-    for r in range(3):
-        for c in range(3):
-            if np.random.random() < 0.2:
-                continue
-            shape = np.random.randint(N_SHAPES)
-            color = np.random.randint(N_COLORS)
-            size = np.random.randint(N_SIZES)
-            draw(shape, color, size, c, r, ctx)
-            shapes[r][c] = shape
-            colors[r][c] = color
-            sizes[r][c] = size
-            cheat_data[shape][r][c] = 1
-            cheat_data[N_SHAPES + color][r][c] = 1
+#     for r in range(3):
+#         for c in range(3):
+#             if np.random.random() < 0.2:
+#                 continue
+#             shape = np.random.randint(N_SHAPES)
+#             color = np.random.randint(N_COLORS)
+#             size = np.random.randint(N_SIZES)
+#             draw(shape, color, size, c, r, ctx)
+#             shapes[r][c] = shape
+#             colors[r][c] = color
+#             sizes[r][c] = size
+#             cheat_data[shape][r][c] = 1
+#             cheat_data[N_SHAPES + color][r][c] = 1
 
-    #surf.write_to_png("_sample.png")
-    return Image(shapes, colors, sizes, data, cheat_data)
+#     #surf.write_to_png("_sample.png")
+#     return Image(shapes, colors, sizes, data, cheat_data)
 
 
 def get_image(shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
+    PIXEL_SCALE = 2
     surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
     ctx = cairo.Context(surf)
+    # ctx.scale(PIXEL_SCALE, PIXEL_SCALE)
     ctx.set_source_rgb(0., 0., 0.)
     ctx.paint()
 
@@ -111,13 +113,16 @@ def get_image(shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False)
     colors = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
     sizes = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
 
-    if n == 1:
+    shape = shape if shape >= 0 else np.random.randint(N_SHAPES)
+    color = color if color >= 0 else np.random.randint(N_COLORS)
+
+    for _ in range(n):
         # Random location
         r = np.random.randint(N_CELLS)
         c = np.random.randint(N_CELLS)
 
-        shapes[r][c] = shape if shape >= 0 else np.random.randint(N_SHAPES)
-        colors[r][c] = color if color >= 0 else np.random.randint(N_COLORS)
+        shapes[r][c] = shape
+        colors[r][c] = color
         sizes[r][c] = np.random.randint(N_SIZES)
 
         draw(shapes[r][c],
@@ -127,7 +132,5 @@ def get_image(shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False)
             r,
             ctx)
 
-    else:
-        assert False, 'NYI n>1'
 
     return Image(shapes, colors, sizes, data)
