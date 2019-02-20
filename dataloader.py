@@ -40,11 +40,11 @@ def load_data(batch_size, k):
 
 
 def load_shapes_data(batch_size, k):
-	folder = 'normal_dist'
+	folder = 'balanced'
 
-	train_features = np.load('shapes/{}/train.large.input.npy'.format(folder)) #'data/train.large.input.npy'
-	valid_features = np.load('shapes/{}/val.input.npy'.format(folder))
-	test_features = np.load('shapes/{}/test.input.npy'.format(folder))
+	train_features = np.load('data/shapes/{}/train_features.npy'.format(folder)) #'data/train.large.input.npy'
+	valid_features = np.load('data/shapes/{}/valid_features.npy'.format(folder))
+	test_features = np.load('data/shapes/{}/test_features.npy'.format(folder))
 
 	train_features = train_features.astype(np.float32)
 	valid_features = valid_features.astype(np.float32)
