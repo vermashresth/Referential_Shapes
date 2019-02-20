@@ -24,19 +24,18 @@ EPOCHS = 1000 if use_gpu else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if use_gpu else 4
-MAX_SENTENCE_LENGTH = 13 if use_gpu else 5
+MAX_SENTENCE_LENGTH = 10 if use_gpu else 5
 K = 3  # number of distractors
 
 # Load vocab
 word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes')
-vocab_size = len(word_to_idx) # 10000
+vocab_size = len(word_to_idx) # mscoco: 10000
+
+print('|V|: {}'.format(vocab_size))
+print('L: {}'.format(MAX_SENTENCE_LENGTH))
 
 # Load data
-#n_image_features, train_data, valid_data, test_data = load_data('mscoco', BATCH_SIZE, K)
-
 n_image_features, train_data, valid_data, test_data = load_data('shapes/balanced', BATCH_SIZE, K)
-
-# n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
 
 # Settings
 dumps_dir = './dumps'
@@ -101,10 +100,6 @@ for epoch in range(EPOCHS):
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
 		model, valid_data, bound_idx, MAX_SENTENCE_LENGTH)
-
-	# print(eval_messages.shape)
-
-	# assert False, 'is this correct?'
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
