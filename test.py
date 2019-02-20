@@ -8,7 +8,7 @@ import torch
 from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping #get_lr_scheduler
-from dataloader import load_dictionaries, load_shapes_data, load_data
+from dataloader import load_dictionaries, load_data
 
 
 use_gpu = torch.cuda.is_available()
@@ -25,17 +25,18 @@ EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if use_gpu else 4
 MAX_SENTENCE_LENGTH = 13 if use_gpu else 5
-START_TOKEN = '<S>'
 K = 3  # number of distractors
 
 # Load vocab
-word_to_idx, idx_to_word, bound_idx = load_dictionaries() #### wait, why?
+word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes')
 vocab_size = len(word_to_idx) # 10000
 
 # Load data
-#n_image_features, train_data, valid_data, test_data = load_data(BATCH_SIZE, K)
+#n_image_features, train_data, valid_data, test_data = load_data('mscoco', BATCH_SIZE, K)
 
-n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
+n_image_features, train_data, valid_data, test_data = load_data('shapes/balanced', BATCH_SIZE, K)
+
+# n_image_features, train_data, valid_data, test_data = load_shapes_data(BATCH_SIZE, K)
 
 # Settings
 dumps_dir = './dumps'
@@ -93,17 +94,17 @@ for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
 	epoch_loss_meter, epoch_acc_meter = train_one_epoch(
-		model, train_data, optimizer, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+		model, train_data, optimizer, bound_idx, MAX_SENTENCE_LENGTH)
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+		model, valid_data, bound_idx, MAX_SENTENCE_LENGTH)
 
-	print(eval_messages.shape)
+	# print(eval_messages.shape)
 
-	assert False, 'is this correct?'
+	# assert False, 'is this correct?'
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
@@ -146,7 +147,7 @@ best_model.load_state_dict(state)
 if use_gpu:
 	best_model = best_model.cuda()
 
-_, test_acc_meter, test_messages = evaluate(best_model, test_data, word_to_idx, START_TOKEN, MAX_SENTENCE_LENGTH)
+_, test_acc_meter, test_messages = evaluate(best_model, test_data, bound_idx, MAX_SENTENCE_LENGTH)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
