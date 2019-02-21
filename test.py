@@ -3,6 +3,7 @@ import numpy as np
 import random
 from datetime import datetime
 import os
+import sys
 
 import torch
 from model import Sender, Receiver, Model
@@ -27,12 +28,15 @@ BATCH_SIZE = 128 if use_gpu else 4
 MAX_SENTENCE_LENGTH = 10 if use_gpu else 5
 K = 3  # number of distractors
 
-# Load vocab
-word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes')
-vocab_size = len(word_to_idx) # mscoco: 10000
 
-print('|V|: {}'.format(vocab_size))
-print('L: {}'.format(MAX_SENTENCE_LENGTH))
+if len(sys.argv) > 1:
+	vocab_size = int(sys.argv[1])
+	MAX_SENTENCE_LENGTH = int(sys.argv[2])
+
+
+# Load vocab
+word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
+vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
 n_image_features, train_data, valid_data, test_data = load_data('shapes/balanced', BATCH_SIZE, K)
@@ -51,6 +55,15 @@ else:
 	second_last_underscore = prev_model_file_name[:last_underscore].rfind('_')
 	model_id = prev_model_file_name[last_backslash+1:second_last_underscore]
 	starting_epoch = int(prev_model_file_name[second_last_underscore+1:last_underscore])
+
+
+################# Print info ####################
+print('----------------------------------------')
+print('Model id: {}'.format(model_id))
+print('|V|: {}'.format(vocab_size))
+print('L: {}'.format(MAX_SENTENCE_LENGTH))
+print('Using gpu: {}'.format(use_gpu))
+#################################################
 
 current_model_dir = '{}/{}'.format(dumps_dir, model_id)
 
