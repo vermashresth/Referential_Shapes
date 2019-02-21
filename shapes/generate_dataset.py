@@ -15,7 +15,7 @@ def get_dataset_balanced(size, seed):
 	data = []
 
 	for i in range(size):
-		data.append(get_image(seed))
+		data.append(get_image(seed+i))
 
 	shuffle(data)
 
@@ -35,7 +35,7 @@ def get_dataset_unbalanced(size, seed, least_freq_shape=SHAPE_CIRCLE, least_freq
 		else:
 			shape = least_freq_shape + 1 if np.random.randint(2) == 0 else least_freq_shape + 2
 
-		data.append(get_image(seed, shape))
+		data.append(get_image(seed+i, shape))
 
 	shuffle(data)
 

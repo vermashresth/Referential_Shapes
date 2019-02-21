@@ -1,10 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 folder = 'dummy'
 npy_file = '{}/train.large.input.npy'.format(folder)
 
-img = np.load(npy_file)[5]
+assert len(sys.argv) > 1, 'Indicate an index!'
+
+img = np.load(npy_file)[int(sys.argv[1])]
 print(img.shape)
 img = np.transpose(img, (2, 0, 1))
 b, g, r = img[0,...], img[1,...], img[2,...]
