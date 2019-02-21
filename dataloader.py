@@ -5,8 +5,8 @@ from torch.utils.data.sampler import BatchSampler
 
 from ImageDataset import ImageDataset, ImagesSampler
 
-def load_dictionaries(folder):
-	with open("data/{}/dict.pckl".format(folder), "rb") as f:
+def load_dictionaries(folder, vocab_size):
+	with open("data/{}/dict_{}.pckl".format(folder, vocab_size), "rb") as f:
 	    d = pickle.load(f)
 	    word_to_idx = d["word_to_idx"] # dictionary w->i
 	    idx_to_word = d["idx_to_word"] # list of words
