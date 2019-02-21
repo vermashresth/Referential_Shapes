@@ -15,6 +15,6 @@ idx_to_word.append(START_TOKEN)
 word_to_idx[START_TOKEN] = len(idx_to_word) - 1
 
 
-with open('data/shapes/dict.pckl', 'wb') as f:
+with open('data/shapes/dict_{}.pckl'.format(VOCAB_SIZE), 'wb') as f:
     pickle.dump({'word_to_idx': word_to_idx,
                   'idx_to_word': idx_to_word}, f)
