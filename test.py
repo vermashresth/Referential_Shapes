@@ -13,6 +13,7 @@ from dataloader import load_dictionaries, load_data
 
 
 use_gpu = torch.cuda.is_available()
+debugging = not use_gpu
 
 seed = 42
 torch.manual_seed(seed)
@@ -21,11 +22,11 @@ if use_gpu:
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if use_gpu else 2
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if use_gpu else 4
-MAX_SENTENCE_LENGTH = 10 if use_gpu else 5
+BATCH_SIZE = 128 if not debugging else 4
+MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
 
@@ -43,7 +44,7 @@ n_image_features, train_data, valid_data, test_data = load_data('shapes/balanced
 
 # Settings
 dumps_dir = './dumps'
-if not os.path.exists(dumps_dir):
+if not os.path.exists(dumps_dir) and not debugging:
 	os.mkdir(dumps_dir)
 
 if prev_model_file_name == None:
@@ -67,7 +68,7 @@ print('Using gpu: {}'.format(use_gpu))
 
 current_model_dir = '{}/{}'.format(dumps_dir, model_id)
 
-if not os.path.exists(current_model_dir):
+if not os.path.exists(current_model_dir) and not debugging:
 	os.mkdir(current_model_dir)
 
 
@@ -106,13 +107,13 @@ for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
 	epoch_loss_meter, epoch_acc_meter = train_one_epoch(
-		model, train_data, optimizer, bound_idx, MAX_SENTENCE_LENGTH)
+		model, train_data, optimizer, bound_idx, MAX_SENTENCE_LENGTH, debugging)
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, bound_idx, MAX_SENTENCE_LENGTH)
+		model, valid_data, bound_idx, MAX_SENTENCE_LENGTH, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
@@ -123,18 +124,19 @@ for epoch in range(EPOCHS):
 	# lr_scheduler.step(eval_acc_meter.avg)
 	es.step(eval_acc_meter.avg)
 
-	# Dump models
-	torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+	if not debugging:
+		# Dump models
+		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
-	# Dump stats
-	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		# Dump stats
+		pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
-	# Dump messages
-	#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		# Dump messages
+		#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 	if es.is_converged:
 		print("Converged in epoch {}".format(e))
@@ -155,9 +157,10 @@ best_model.load_state_dict(state)
 if use_gpu:
 	best_model = best_model.cuda()
 
-_, test_acc_meter, test_messages = evaluate(best_model, test_data, bound_idx, MAX_SENTENCE_LENGTH)
+_, test_acc_meter, test_messages = evaluate(best_model, test_data, bound_idx, MAX_SENTENCE_LENGTH, debugging)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
-pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+if not debugging:
+	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))

@@ -2,10 +2,8 @@ from utils import AverageMeter
 import torch
 import torch.nn as nn
 
-debugging = not torch.cuda.is_available()
 
-
-def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length):
+def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length, debugging=False):
 
 	model.train()
 
@@ -31,7 +29,7 @@ def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length
 
 	return loss_meter, acc_meter
 
-def evaluate(model, data, start_token_idx, max_sentence_length):
+def evaluate(model, data, start_token_idx, max_sentence_length, debugging=False):
 	
 	model.eval()
 
