@@ -62,50 +62,21 @@ def draw(shape, color, size, left, top, ctx):
     ctx.fill()
 
 class Image:
-    def __init__(self, shapes, colors, sizes, data, cheat_data = None):
+    def __init__(self, shapes, colors, sizes, data, metadata):
         self.shapes = shapes
         self.colors = colors
         self.sizes = sizes
         self.data = data
-        self.cheat_data = cheat_data
+        self.metadata = metadata
 
 
-# def sample_image():
-#     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
-#     cheat_data = np.zeros((6, 3, 3))
-#     surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-#     ctx = cairo.Context(surf)
-#     ctx.set_source_rgb(0., 0., 0.)
-#     ctx.paint()
-
-#     shapes = [[None for c in range(3)] for r in range(3)]
-#     colors = [[None for c in range(3)] for r in range(3)]
-#     sizes = [[None for c in range(3)] for r in range(3)]
-
-#     for r in range(3):
-#         for c in range(3):
-#             if np.random.random() < 0.2:
-#                 continue
-#             shape = np.random.randint(N_SHAPES)
-#             color = np.random.randint(N_COLORS)
-#             size = np.random.randint(N_SIZES)
-#             draw(shape, color, size, c, r, ctx)
-#             shapes[r][c] = shape
-#             colors[r][c] = color
-#             sizes[r][c] = size
-#             cheat_data[shape][r][c] = 1
-#             cheat_data[N_SHAPES + color][r][c] = 1
-
-#     #surf.write_to_png("_sample.png")
-#     return Image(shapes, colors, sizes, data, cheat_data)
-
-
-def get_image(shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
+def get_image(seed, shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
+    np.random.seed(seed)
+    
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
     PIXEL_SCALE = 2
     surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
     ctx = cairo.Context(surf)
-    # ctx.scale(PIXEL_SCALE, PIXEL_SCALE)
     ctx.set_source_rgb(0., 0., 0.)
     ctx.paint()
 
@@ -132,5 +103,6 @@ def get_image(shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False)
             r,
             ctx)
 
+    metadata = {'shapes':shapes, 'colors':colors, 'sizes':sizes}
 
-    return Image(shapes, colors, sizes, data)
+    return Image(shapes, colors, sizes, data, metadata)

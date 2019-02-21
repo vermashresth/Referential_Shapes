@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-folder = 'balanced'
-npy_file = '{}/test.input.npy'.format(folder)
+folder = 'dummy'
+npy_file = '{}/train.large.input.npy'.format(folder)
 
 img = np.load(npy_file)[5]
 print(img.shape)
