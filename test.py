@@ -48,7 +48,7 @@ if not os.path.exists(dumps_dir) and not debugging:
 	os.mkdir(dumps_dir)
 
 if prev_model_file_name == None:
-	model_id = '{:%m_%d_%H_%M}'.format(datetime.now())
+	model_id = '{:%m%d%H%M}'.format(datetime.now())
 	starting_epoch = 0
 else:
 	last_backslash = prev_model_file_name.rfind('/')
