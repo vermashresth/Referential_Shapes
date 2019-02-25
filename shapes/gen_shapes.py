@@ -16,16 +16,16 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 if __name__ == "__main__":
 
-    folder_name = 'dummy'
+    folder_name = 'balanced'
     k = 3
 
     seed = 42
     np.random.seed(seed)
 
     # From Serhii's original experiment
-    train_size = 1000#74504
-    val_size = 1#8279
-    test_size = 1#40504
+    train_size = 74504
+    val_size = 8279
+    test_size = 40504
 
     train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, get_dataset_balanced, seed)
 
@@ -51,4 +51,4 @@ if __name__ == "__main__":
         np.save("{}/{}.input".format(folder_name, set_name), set_inputs)
 
         set_metadata = [image.metadata for image in set_data]
-        pickle.dump(set_metadata, open('{}/{}_metadata.p'.format(folder_name, set_name), 'wb'))
+        pickle.dump(set_metadata, open('{}/{}.metadata.p'.format(folder_name, set_name), 'wb'))
