@@ -1,7 +1,11 @@
 import pickle
+import sys
 
 VOCAB_SIZE = 100
 START_TOKEN = '<S>'
+
+if len(sys.argv) > 1:
+	VOCAB_SIZE = int(sys.argv[1])
 
 idx_to_word = []
 word_to_idx = {}
