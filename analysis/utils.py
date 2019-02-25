@@ -72,7 +72,7 @@ def plot_token_distribution(counter, model_id, plots_dir):
 	plt.xticks(rotation=90)
 	plt.plot(tokens, occurrences)
 
-	plt.savefig('{}/token_dist_{}.png'.format(plots_dir, model_id))
+	plt.savefig('{}/{}_token_dist.png'.format(plots_dir, model_id))
 
 
 def plot_token_frequency(counter, n_utterances, percent, model_id, plots_dir):
@@ -84,13 +84,13 @@ def plot_token_frequency(counter, n_utterances, percent, model_id, plots_dir):
 		occurrences.append(v)
 
 	plt.clf()
-	plt.title('Frequency for top {}% most used tokens'.format(percent * 100))
+	plt.title('Frequency for top {}% most used tokens'.format(int(percent * 100)))
 	plt.ylabel('Number of occurrences')
 	plt.xlabel('Token')
 	plt.xticks(rotation=90)
 	plt.bar(tokens, occurrences)
 
-	plt.savefig('{}/top_{}percent_most_freq_{}.png'.format(plots_dir, int(percent*100), model_id))
+	plt.savefig('{}/{}_top_{}p_most_freq.png'.format(plots_dir, model_id, int(percent*100)))
 
 def plot_attributes_per_token(counter, n_utterances, percent, token_to_attr, model_id, plots_dir):
 	tokens = []
@@ -118,9 +118,9 @@ def plot_attributes_per_token(counter, n_utterances, percent, token_to_attr, mod
 	pshape0 = plt.bar(tokens, data_shape0)
 	pshape1 = plt.bar(tokens, data_shape1, bottom=data_shape0)
 	pshape2 = plt.bar(tokens, data_shape2, bottom=data_shape1)
-	pcolor0 = plt.bar(tokens, data_color0, bottom=data_shape2)
-	pcolor1 = plt.bar(tokens, data_color1, bottom=data_color0)
-	pcolor2 = plt.bar(tokens, data_color2, bottom=data_color1)
+	pcolor0 = plt.bar(tokens, data_color0, bottom=data_shape2, color='red')
+	pcolor1 = plt.bar(tokens, data_color1, bottom=data_color0, color='green')
+	pcolor2 = plt.bar(tokens, data_color2, bottom=data_color1, color='blue')
 	psize0 = plt.bar(tokens, data_size0, bottom=data_color2)
 	psize1 = plt.bar(tokens, data_size1, bottom=data_size0)
 
@@ -128,7 +128,7 @@ def plot_attributes_per_token(counter, n_utterances, percent, token_to_attr, mod
 		(pshape0[0], pshape1[0], pshape2[0], pcolor0[0], pcolor1[0], pcolor2[0], psize0[0], psize1[0]), 
 		('circle', 'square', 'triangle', 'red', 'green', 'blue', 'small', 'big'))
 
-	plt.savefig('{}/attributes_per_top_{}p_tokens_{}.png'.format(plots_dir, int(percent*100), model_id))
+	plt.savefig('{}/{}_attributes_per_top_{}p_tokens.png'.format(plots_dir, model_id, int(percent*100)))
 
 
 def plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir):
@@ -168,7 +168,7 @@ def plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir):
 		plt.xlabel('Tokens')
 		plt.xticks(rotation=90)
 
-	plt.savefig('{}/top_{}_tokens_per_attribute.png'.format(plots_dir, n_top_tokens))
+	plt.savefig('{}/{}_top_{}_tokens_per_attribute.png'.format(plots_dir, model_id, n_top_tokens))
 
 
 def get_feature_ids(message_metadata):

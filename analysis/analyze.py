@@ -47,7 +47,7 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 	plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir)
 
 
-	return (len(messages[0]), 
+	return (len(messages[0] - 1), 
 			acc_meter.avg,
 			min_len,
 			max_len,
@@ -61,9 +61,13 @@ assert len(sys.argv) >= 3 and len(sys.argv) % 2 != 0, 'You need at least one mod
 
 
 plots_dir = 'plots'
+stats_dir = 'tables'
 
 if not os.path.exists(plots_dir):
 	os.mkdir(plots_dir)
+
+if not os.path.exists(stats_dir):
+	os.mkdir(stats_dir)
 
 data_folder = 'balanced'
 stats_dict = {
@@ -95,6 +99,6 @@ for i in range(1, len(sys.argv), 2):
 
 
 df = pd.DataFrame(stats_dict)
-df.to_csv('{}/stats_{}.csv'.format(plots_dir, data_folder), index=None, header=True)
+df.to_csv('{}/stats_{}.csv'.format(stats_dir, data_folder), index=None, header=True)
 
 
