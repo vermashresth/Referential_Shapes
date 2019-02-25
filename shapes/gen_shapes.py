@@ -4,7 +4,8 @@ import numpy as np
 import os
 import pickle
 
-from generate_dataset import get_datasets, get_dataset_balanced
+from generate_dataset import *
+from image_utils import *
 
 N_TRAIN_TINY    = 1
 N_TRAIN_SMALL = 10
@@ -16,18 +17,22 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 if __name__ == "__main__":
 
-    folder_name = 'balanced'
-    k = 3
+    folder_name = 'different_targets'
+    f_generate_dataset = get_dataset_different_targets
 
     seed = 42
     np.random.seed(seed)
 
     # From Serhii's original experiment
-    train_size = 74504
-    val_size = 8279
-    test_size = 40504
+    train_size = 10#74504
+    val_size = 2#8279
+    test_size = 2#40504
 
-    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, get_dataset_balanced, seed)
+
+    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, seed)
+
+    has_tuples = type(train_data[0]) is tuple
+
 
     train_data_tiny = train_data[:N_TRAIN_TINY]
     train_data_small = train_data[:N_TRAIN_SMALL]
@@ -47,8 +52,21 @@ if __name__ == "__main__":
         os.mkdir(folder_name)
 
     for set_name, set_data in sets.items():
-        set_inputs = np.asarray([image.data[:,:,0:3] for image in set_data])
+        if not has_tuples:
+            set_inputs = np.asarray([image.data[:,:,0:3] for image in set_data])
+        else:
+            tuple_len = len(set_data[0]) # 2
+            n_rows = len(set_data)
+            set_inputs = np.zeros((n_rows, tuple_len, WIDTH, HEIGHT, N_CHANNELS), dtype=np.uint8)
+            for i in range(n_rows):
+                for j in range(tuple_len):
+                    set_inputs[i][j] = set_data[i][j].data[:,:,0:3]
+
         np.save("{}/{}.input".format(folder_name, set_name), set_inputs)
 
-        set_metadata = [image.metadata for image in set_data]
+        if not has_tuples:
+            set_metadata = [image.metadata for image in set_data]
+        else:
+            set_metadata = [(image[0].metadata, image[1].metadata) for image in set_data]
+
         pickle.dump(set_metadata, open('{}/{}.metadata.p'.format(folder_name, set_name), 'wb'))

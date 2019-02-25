@@ -1,4 +1,4 @@
-from image_utils import get_image, SHAPE_CIRCLE, SHAPE_SQUARE, SHAPE_TRIANGLE, COLOR_RED, COLOR_GREEN, COLOR_BLUE
+from image_utils import *
 import numpy as np
 from random import shuffle
 
@@ -12,20 +12,20 @@ def get_datasets(train_size, val_size, test_size, f_get_dataset, seed):
 def get_dataset_balanced(size, seed):
 	np.random.seed(seed)
 
-	data = []
+	images = []
 
 	for i in range(size):
-		data.append(get_image(seed+i))
+		images.append(get_image(seed+i))
 
-	shuffle(data)
+	shuffle(images)
 
-	return data
+	return images
 
-
+# Review this
 def get_dataset_unbalanced(size, seed, least_freq_shape=SHAPE_CIRCLE, least_freq_ratio=0.1):
 	np.random.seed(seed)
 
-	data = []
+	images = []
 
 	n_unfreq_shapes = least_freq_ratio * size
 
@@ -35,8 +35,35 @@ def get_dataset_unbalanced(size, seed, least_freq_shape=SHAPE_CIRCLE, least_freq
 		else:
 			shape = least_freq_shape + 1 if np.random.randint(2) == 0 else least_freq_shape + 2
 
-		data.append(get_image(seed+i, shape))
+		images.append(get_image(seed+i, shape))
 
-	shuffle(data)
+	shuffle(images)
 
-	return data
+	return images
+
+def get_dataset_different_targets(size, seed):
+	images = []
+
+	for i in range(size):
+		np.random.seed(seed+i)
+
+		shape = np.random.randint(N_SHAPES)
+		color = np.random.randint(N_COLORS)
+		img1 = get_image(seed+i, shape, color)
+
+		# Different size and/or location
+		img2 = get_image(seed+(i+1)*2, shape, color)
+
+		j = 0
+		while img1.metadata == img2.metadata:
+			img2 = get_image(seed+i*2+j+1, shape, color)
+			j += 1
+
+		images.append((img1, img2))
+
+
+	shuffle(images)
+
+	return images
+
+
