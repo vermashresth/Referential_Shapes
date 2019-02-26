@@ -80,7 +80,7 @@ class Sender(nn.Module):
 
 			message.append(token)
 
-		return torch.stack(message, dim=1)
+		return torch.stack(message[1:], dim=1) # Skip the first <S>
 
 		
 

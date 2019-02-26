@@ -147,12 +147,15 @@ for epoch in range(EPOCHS):
 
 # Evaluate best model on test data
 
-best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
-best_model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
-best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
-state = torch.load(best_model_name, map_location= lambda storage, location: storage)
-best_model.load_state_dict(state)
+if debugging:
+	best_model = model
+else:
+	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
+	best_model = Model(n_image_features, vocab_size,
+		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+	best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
+	state = torch.load(best_model_name, map_location= lambda storage, location: storage)
+	best_model.load_state_dict(state)
 
 if use_gpu:
 	best_model = best_model.cuda()
