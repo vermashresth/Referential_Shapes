@@ -24,9 +24,9 @@ if __name__ == "__main__":
     np.random.seed(seed)
 
     # From Serhii's original experiment
-    train_size = 10#74504
-    val_size = 2#8279
-    test_size = 2#40504
+    train_size = 74504
+    val_size = 8279
+    test_size = 40504
 
 
     train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, seed)

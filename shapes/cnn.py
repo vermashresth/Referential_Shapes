@@ -13,39 +13,49 @@ use_gpu = torch.cuda.is_available()
 
 class ShapesDataset(data.Dataset):
 
-    def __init__(self, images):
-        super().__init__()
+	def __init__(self, images):
+		super().__init__()
 
-        self.data = images
+		self.data = images
 
-        self.transforms = torchvision.transforms.Compose([
-	        torchvision.transforms.ToPILImage(),
-	        torchvision.transforms.Resize((250, 250), Image.LINEAR),
-	        torchvision.transforms.ToTensor(),
-	        torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # Needed for pretrained models
-	    ])
+		self.n_tuples = 0 if len(images.shape) < 5 else images.shape[1]
 
-    def __getitem__(self, index):
-        image = self.data[index, :, :, :]
-        
-        image = self.transforms(image)
-        
-        return image        
+		self.transforms = torchvision.transforms.Compose([
+			torchvision.transforms.ToPILImage(),
+			torchvision.transforms.Resize((250, 250), Image.LINEAR),
+			torchvision.transforms.ToTensor(),
+			torchvision.transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # Needed for pretrained models
+		])
 
-    def __len__(self):
-        return self.data.shape[0]
+	def __getitem__(self, index):
+		if self.n_tuples == 0:
+			image = self.data[index, :, :, :]
+			image = self.transforms(image)
+		else:
+			imgs = []
+			for i in range(self.n_tuples):
+				img = self.data[index, i, :, :, :]
+				img = self.transforms(img)
+
+				imgs.append(img)
+
+			image = torch.stack(imgs) # 2 x 3 x 250 x 250
+
+		return image
+
+	def __len__(self):
+		return self.data.shape[0]
 
 
 
 def get_features(dataloader, output_data_folder, file_id):
-	# n_features = 4096
-
-	# features = np.zeros((len(dataloader), n_features))
-
-	# if use_gpu:
-	# 	features = features.cuda()
-
 	for i, x in enumerate(dataloader):
+		if i == 0:
+			if len(x.shape) == 5:
+				n_tuples = x.shape[1]
+			else:
+				n_tuples = 0
+
 		if use_gpu:
 			x = x.cuda()
 
@@ -65,14 +75,6 @@ def get_features(dataloader, output_data_folder, file_id):
 		if not use_gpu and i == 5:
 			break
 
-		# print(y)
-		# print(y.shape)
-		
-
-		# features[i] = y.numpy()
-	
-	# return features
-
 
 def stitch_files(output_data_folder, file_id):
 	file_names = ['{}/{}'.format(output_data_folder, f) for f in os.listdir(output_data_folder) if file_id in f]
@@ -89,9 +91,9 @@ def stitch_files(output_data_folder, file_id):
 
 
 
-batch_size = 128 if use_gpu else 2
+batch_size = 128 if use_gpu else 4
 
-folder = 'balanced'
+folder = 'different_targets'
 train_images = np.load('{}/train.large.input.npy'.format(folder))
 val_images = np.load('{}/val.input.npy'.format(folder))
 test_images = np.load('{}/test.input.npy'.format(folder))
