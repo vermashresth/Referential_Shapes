@@ -10,6 +10,7 @@ from model import Sender, Receiver, Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping #get_lr_scheduler
 from dataloader import load_dictionaries, load_data
+from build_shapes_dictionaries import *
 
 
 use_gpu = torch.cuda.is_available()
@@ -34,6 +35,10 @@ if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
 	MAX_SENTENCE_LENGTH = int(sys.argv[2])
 
+
+# Create vocab if there is not one for the desired size already
+if not does_vocab_exist(vocab_size):
+	build_vocab(vocab_size)
 
 # Load vocab
 word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)

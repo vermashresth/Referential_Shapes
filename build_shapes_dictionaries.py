@@ -1,24 +1,25 @@
 import pickle
-import sys
+import os
 
-VOCAB_SIZE = 100
 START_TOKEN = '<S>'
+shapes_vocab_path = 'data/shapes'
 
-if len(sys.argv) > 1:
-	VOCAB_SIZE = int(sys.argv[1])
+def does_vocab_exist(vocab_size):
+	return os.path.exists('{}/dict_{}.pckl'.format(shapes_vocab_path, vocab_size))
 
-idx_to_word = []
-word_to_idx = {}
+def build_vocab(vocab_size):
+	idx_to_word = []
+	word_to_idx = {}
 
-for i in range(VOCAB_SIZE - 1):
-	word = str(i)
-	idx_to_word.append(word)
-	word_to_idx[word] = i
+	for i in range(vocab_size - 1):
+		word = str(i)
+		idx_to_word.append(word)
+		word_to_idx[word] = i
 
-idx_to_word.append(START_TOKEN)
-word_to_idx[START_TOKEN] = len(idx_to_word) - 1
+	idx_to_word.append(START_TOKEN)
+	word_to_idx[START_TOKEN] = len(idx_to_word) - 1
 
 
-with open('data/shapes/dict_{}.pckl'.format(VOCAB_SIZE), 'wb') as f:
-    pickle.dump({'word_to_idx': word_to_idx,
-                  'idx_to_word': idx_to_word}, f)
+	with open('{}/dict_{}.pckl'.format(shapes_vocab_path, vocab_size), 'wb') as f:
+	    pickle.dump({'word_to_idx': word_to_idx,
+	                  'idx_to_word': idx_to_word}, f)
