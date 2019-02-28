@@ -1,6 +1,9 @@
 from collections import Counter
 import matplotlib.pyplot as plt
 import pickle
+from mpl_toolkits.mplot3d import Axes3D
+from matplotlib.ticker import MaxNLocator
+
 
 def load_dictionaries(vocab_size):
 	with open("../data/shapes/dict_{}.pckl".format(vocab_size), "rb") as f:
@@ -11,9 +14,7 @@ def load_dictionaries(vocab_size):
 
 	return word_to_idx, idx_to_word, bound_idx
 
-def get_message_length(message, padding_idx):
-	assert message[0] == padding_idx, 'First token should always be <S>!'
-	
+def get_message_length(message, padding_idx):	
 	start_pad_pos = 0
 
 	for i in reversed(range(len(message))):
@@ -22,11 +23,10 @@ def get_message_length(message, padding_idx):
 		else:
 			break
 
-	# we ignore the first token for statistical purposes
 	if start_pad_pos == 0:
-		return len(message) - 1
+		return len(message)
 	else:
-		return start_pad_pos - 1
+		return start_pad_pos
 
 
 def compute_stats(messages, padding_idx, idx_to_word):
@@ -92,49 +92,65 @@ def plot_token_frequency(counter, n_utterances, percent, model_id, plots_dir):
 
 	plt.savefig('{}/{}_top_{}p_most_freq.png'.format(plots_dir, model_id, int(percent*100)))
 
-def plot_attributes_per_token(counter, n_utterances, percent, token_to_attr, model_id, plots_dir):
-	tokens = []
+# def plot_attributes_per_token(counter, n_utterances, percent, token_to_attr, model_id, plots_dir):
+# 	tokens = []
 
-	for token, _ in counter.most_common(int(n_utterances * percent)):
-		if token == '<S>':
-			continue
-		tokens.append(token)
+# 	for token, _ in counter.most_common(int(n_utterances * percent)):
+# 		tokens.append(token)
 
-	plt.clf()
-	plt.title('Attributes for top {}% most used tokens'.format(int(percent * 100)))
-	plt.ylabel('Attributes')
-	plt.xlabel('Token')
-	plt.xticks(rotation=90)
+# 	plt.clf()
+# 	plt.title('Attributes for top {}% most used tokens'.format(int(percent * 100)))
+# 	plt.ylabel('Attributes')
+# 	plt.xlabel('Token')
+# 	plt.xticks(rotation=90)
 
-	data_shape0 = [token_to_attr[t]['shape_0'] for t in tokens]
-	data_shape1 = [token_to_attr[t]['shape_1'] for t in tokens]
-	data_shape2 = [token_to_attr[t]['shape_2'] for t in tokens]
-	data_color0 = [token_to_attr[t]['color_0'] for t in tokens]
-	data_color1 = [token_to_attr[t]['color_1'] for t in tokens]
-	data_color2 = [token_to_attr[t]['color_2'] for t in tokens]
-	data_size0 = [token_to_attr[t]['size_0'] for t in tokens]
-	data_size1 = [token_to_attr[t]['size_1'] for t in tokens]
+# 	data_shape0 = [token_to_attr[t]['shape_0'] for t in tokens]
+# 	data_shape1 = [token_to_attr[t]['shape_1'] for t in tokens]
+# 	data_shape2 = [token_to_attr[t]['shape_2'] for t in tokens]
+# 	data_color0 = [token_to_attr[t]['color_0'] for t in tokens]
+# 	data_color1 = [token_to_attr[t]['color_1'] for t in tokens]
+# 	data_color2 = [token_to_attr[t]['color_2'] for t in tokens]
+# 	data_size0 = [token_to_attr[t]['size_0'] for t in tokens]
+# 	data_size1 = [token_to_attr[t]['size_1'] for t in tokens]
 
-	pshape0 = plt.bar(tokens, data_shape0)
-	pshape1 = plt.bar(tokens, data_shape1, bottom=data_shape0)
-	pshape2 = plt.bar(tokens, data_shape2, bottom=data_shape1)
-	pcolor0 = plt.bar(tokens, data_color0, bottom=data_shape2, color='red')
-	pcolor1 = plt.bar(tokens, data_color1, bottom=data_color0, color='green')
-	pcolor2 = plt.bar(tokens, data_color2, bottom=data_color1, color='blue')
-	psize0 = plt.bar(tokens, data_size0, bottom=data_color2)
-	psize1 = plt.bar(tokens, data_size1, bottom=data_size0)
+# 	pshape0 = plt.bar(tokens, data_shape0)
+# 	pshape1 = plt.bar(tokens, data_shape1, bottom=data_shape0)
+# 	pshape2 = plt.bar(tokens, data_shape2, bottom=data_shape1)
+# 	pcolor0 = plt.bar(tokens, data_color0, bottom=data_shape2, color='red')
+# 	pcolor1 = plt.bar(tokens, data_color1, bottom=data_color0, color='green')
+# 	pcolor2 = plt.bar(tokens, data_color2, bottom=data_color1, color='blue')
+# 	psize0 = plt.bar(tokens, data_size0, bottom=data_color2)
+# 	psize1 = plt.bar(tokens, data_size1, bottom=data_size0)
 
-	plt.legend(
-		(pshape0[0], pshape1[0], pshape2[0], pcolor0[0], pcolor1[0], pcolor2[0], psize0[0], psize1[0]), 
-		('circle', 'square', 'triangle', 'red', 'green', 'blue', 'small', 'big'))
+# 	plt.legend(
+# 		(pshape0[0], pshape1[0], pshape2[0], pcolor0[0], pcolor1[0], pcolor2[0], psize0[0], psize1[0]), 
+# 		('circle', 'square', 'triangle', 'red', 'green', 'blue', 'small', 'big'))
 
-	plt.savefig('{}/{}_attributes_per_top_{}p_tokens.png'.format(plots_dir, model_id, int(percent*100)))
+# 	plt.savefig('{}/{}_attributes_per_top_{}p_tokens.png'.format(plots_dir, model_id, int(percent*100)))
 
+def get_bar_color(name):
+	if name == 'red':
+		return 'r'
+	if name == 'green':
+		return 'g'
+	if name == 'blue':
+		return 'b'
+	if name == 'circle':
+		return 'c'
+	if name == 'square':
+		return 'y'
+	if name == 'triangle':
+		return 'm'
+	if name == 'small':
+		return 'y'
+	if name == 'big':
+		return 'k'
+	assert False, 'Should not be here'
 
 def plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir):
 	plt.clf()
 	plt.figure(figsize=(12,9)) # Originally 8x6 (inches)
-	plt.title('Top {} tokens per attribute'.format(n_top_tokens))
+	plt.title('Top tokens per attribute')
 
 	# 8 attributes
 	n_rows = 4
@@ -150,25 +166,24 @@ def plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir):
 					 'size_0': 'small',
 					 'size_1': 'big'}
 
-	for attr_id, title in attrs_strings.items():
+	for attr_id, attr in attrs_strings.items():
 		c = attr_to_token[attr_id]
 		tokens = []
 		occurrences = []
 		for token, v in c.most_common(n_top_tokens):
-			if token == '<S>':
-				continue
-
 			tokens.append(token)
 			occurrences.append(v)
 
-		plt.subplot(n_rows, n_columns, pos, title=title)
+		plt.subplot(n_rows, n_columns, pos, title=attr)
 		pos += 1
-		plt.bar(tokens, occurrences)
+		plt.bar(tokens, occurrences, color=get_bar_color(attr))
 		plt.ylabel('Occurrences')
-		plt.xlabel('Tokens')
+		# plt.xlabel('Tokens')
 		plt.xticks(rotation=90)
 
-	plt.savefig('{}/{}_top_{}_tokens_per_attribute.png'.format(plots_dir, model_id, n_top_tokens))
+	plt.subplots_adjust(hspace=0.5)
+
+	plt.savefig('{}/{}_top_tokens_per_attr.png'.format(plots_dir, model_id))
 
 
 def get_feature_ids(message_metadata):
@@ -181,7 +196,7 @@ def get_feature_ids(message_metadata):
 
 	return ids
 
-def get_attributes_dicts(messages, padding_idx, metadata, idx_to_word):
+def get_attributes_dicts(messages, metadata, idx_to_word):
 	token_to_attr = {}
 	attr_to_token = {}
 
@@ -189,9 +204,6 @@ def get_attributes_dicts(messages, padding_idx, metadata, idx_to_word):
 		feature_keys = get_feature_ids(metadata[i])
 
 		for token_idx in m:
-			if token_idx == padding_idx:
-				continue
-
 			token = idx_to_word[token_idx]
 			if not token in token_to_attr:
 				token_to_attr[token] = Counter()
@@ -205,6 +217,26 @@ def get_attributes_dicts(messages, padding_idx, metadata, idx_to_word):
 				attr_to_token[feature_key][token] += 1
 
 	return token_to_attr, attr_to_token
+
+def plot_acc_per_setting(stats, dir, id):
+	plt.clf()
+	fig = plt.figure()
+	ax = plt.axes(projection='3d')
+	
+	ax.scatter([int(x) for x in stats['|V|']], 
+				[int(x) for x in stats['L']], 
+				stats['Test acc'])
+
+	ax.set_xlabel('|V|')
+	ax.set_ylabel('L')
+	ax.set_zlabel('Accuracy')
+
+	ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+	ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+	plt.savefig('{}/acc_per_setting_{}.png'.format(dir, id))
+
+
 
 class AverageMeter:
     def __init__(self):
@@ -225,3 +257,26 @@ class AverageMeter:
         self.sum += value * n
         self.count += n
         self.avg = self.sum / self.count
+
+
+
+
+# attr_to_token = {
+# 	'shape_0': Counter(),
+# 	'shape_1': Counter(),
+# 	'shape_2': Counter(),
+# 	'color_0': Counter(),
+# 	'color_1': Counter(),
+# 	'color_2': Counter(),
+# 	'size_0': Counter(),
+# 	'size_1': Counter()
+# }
+
+# for i, k in enumerate(attr_to_token):
+# 	for j in range(10):
+# 		attr_to_token[k]['{}'.format(j)] += np.random.randint(1, 50)
+
+
+
+# n_top_tokens = 10
+# plot_tokens_per_attribute(attr_to_token, n_top_tokens, 'dummy_id', 'plots')

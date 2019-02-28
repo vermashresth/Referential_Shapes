@@ -10,7 +10,6 @@ from utils import *
 def get_stats(model_id, vocab_size, data_folder, plots_dir):
 	_, idx_to_word, padding_idx = load_dictionaries(vocab_size)
 
-
 	dumps_dir = '../dumps'
 	model_dir = '{}/{}'.format(dumps_dir, model_id)
 
@@ -40,14 +39,14 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 	# Token correlation with features
 	metadata = pickle.load(open('../shapes/{}/test.metadata.p'.format(data_folder), 'rb'))
 
-	token_to_attr, attr_to_token = get_attributes_dicts(messages, padding_idx, metadata, idx_to_word)
+	token_to_attr, attr_to_token = get_attributes_dicts(messages, metadata, idx_to_word)
 
-	plot_attributes_per_token(counter, n_utt, top_common_percent, token_to_attr, model_id, plots_dir)
+	#plot_attributes_per_token(counter, n_utt, top_common_percent, token_to_attr, model_id, plots_dir)
 	n_top_tokens = 10
 	plot_tokens_per_attribute(attr_to_token, n_top_tokens, model_id, plots_dir)
 
 
-	return (len(messages[0] - 1), 
+	return (len(messages[0]), 
 			acc_meter.avg,
 			min_len,
 			max_len,
@@ -60,8 +59,8 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 assert len(sys.argv) >= 3 and len(sys.argv) % 2 != 0, 'You need at least one model id and its vocabulary size'
 
 
-plots_dir = 'plots'
-stats_dir = 'tables'
+plots_dir = 'plots' # individual
+stats_dir = 'tables' # across experiments
 
 if not os.path.exists(plots_dir):
 	os.mkdir(plots_dir)
@@ -81,11 +80,19 @@ stats_dict = {
 	'N tokens used': []
 }
 
+# Read in the settings we want to analyze
 for i in range(1, len(sys.argv), 2):
 	model_id = sys.argv[i]
 	vocab_size = sys.argv[i+1]
 
 	L, acc, min_len, max_len, avg_len, n_utt = get_stats(model_id, vocab_size, data_folder, plots_dir)
+
+	# L = model_id
+	# acc = np.random.random()
+	# min_len = np.random.randint(1,10)
+	# max_len = min_len + np.random.randint(2,5)
+	# avg_len = (min_len + max_len) / 2
+	# n_utt = np.random.randint(1, vocab_size)
 
 	stats_dict['id'].append(model_id)
 	stats_dict['|V|'].append(vocab_size)
@@ -96,9 +103,32 @@ for i in range(1, len(sys.argv), 2):
 	stats_dict['Avg message length'].append(avg_len)
 	stats_dict['N tokens used'].append(n_utt)
 
-
-
+# Dump all stats
 df = pd.DataFrame(stats_dict)
-df.to_csv('{}/stats_{}.csv'.format(stats_dir, data_folder), index=None, header=True)
+df.to_csv('{}/all_stats_{}.csv'.format(stats_dir, data_folder), index=None, header=True)
 
 
+unique_VLs = {}
+for idx, (v, l) in enumerate(zip(stats_dict['|V|'], stats_dict['L'])):
+	if (v,l) not in unique_VLs:
+		unique_VLs[(v,l)] = [idx]
+	else:
+		unique_VLs[(v,l)].append(idx)
+
+avg_stats_dict = {k: [] for k in stats_dict.keys() if k != 'id'}
+
+for (v,l), idxs in unique_VLs.items():
+	avg_stats_dict['|V|'].append(v)
+	avg_stats_dict['L'].append(l)
+
+	for measure in list(avg_stats_dict.keys())[2:]:
+		acc = sum([stats_dict[measure][idx] for idx in idxs]) / len(idxs)
+		avg_stats_dict[measure].append(acc)
+
+
+# Dump avg stats
+df = pd.DataFrame(avg_stats_dict)
+df.to_csv('{}/avg_stats_{}.csv'.format(stats_dir, data_folder), index=None, header=True)
+
+
+plot_acc_per_setting(avg_stats_dict, stats_dir, data_folder)
