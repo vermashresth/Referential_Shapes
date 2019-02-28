@@ -16,10 +16,10 @@ from build_shapes_dictionaries import *
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 
-seed = 42
-torch.manual_seed(seed)
-if use_gpu:
-	torch.cuda.manual_seed(seed)
+# seed = 42
+# torch.manual_seed(seed)
+# if use_gpu:
+# 	torch.cuda.manual_seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
