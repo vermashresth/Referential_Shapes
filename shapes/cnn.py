@@ -12,7 +12,6 @@ use_gpu = torch.cuda.is_available()
 
 
 class ShapesDataset(data.Dataset):
-
 	def __init__(self, images):
 		super().__init__()
 
@@ -46,31 +45,48 @@ class ShapesDataset(data.Dataset):
 	def __len__(self):
 		return self.data.shape[0]
 
+def cnn_fwd(model, x):
+	y = model.features(x)
+	# y = model.avgpool(y)
+	y = y.view(y.size(0), -1)
+	y = model.classifier[:5](y)
 
+	y = y.detach()
 
-def get_features(dataloader, output_data_folder, file_id):
+	if use_gpu:
+		y = y.cpu()
+
+	return y.numpy()
+
+def get_features(model, dataloader, output_data_folder, file_id):
 	for i, x in enumerate(dataloader):
+		if use_gpu:
+			x = x.cuda()
+
 		if i == 0:
 			if len(x.shape) == 5:
 				n_tuples = x.shape[1]
 			else:
 				n_tuples = 0
+		
 
-		if use_gpu:
-			x = x.cuda()
+		if n_tuples == 0:
+			y = cnn_fwd(model, x)
 
-		y = vgg16.features(x)
-		# y = vgg16.avgpool(y)
-		y = y.view(y.size(0), -1)
-		y = vgg16.classifier[:5](y)
+		else:
+			ys = []
+			for j in range(n_tuples):
+				x_t = x[:,j,:,:,:]
+				y_t = cnn_fwd(model, x_t)
+				ys.append(y_t)
+			
+			# Here we need to combine 1st elem with 1st elem, etc in the batch
 
-		y = y.detach()
-
-		if use_gpu:
-			y = y.cpu()
+			y = np.asarray(ys)
+			y = np.moveaxis(y, 0, 1)
 
 
-		np.save('{}/{}_{}_features.npy'.format(output_data_folder, file_id, i), y.numpy())
+		np.save('{}/{}_{}_features.npy'.format(output_data_folder, file_id, i), y)
 
 		if not use_gpu and i == 5:
 			break
@@ -123,9 +139,9 @@ output_data_folder = '../data/shapes/{}'.format(folder)
 if not os.path.exists(output_data_folder):
 	os.mkdir(output_data_folder)
 
-train_features = get_features(train_dataloader, output_data_folder, 'train')
-valid_features = get_features(val_dataloader, output_data_folder, 'valid')
-test_features = get_features(test_dataloader, output_data_folder, 'test')
+train_features = get_features(vgg16, train_dataloader, output_data_folder, 'train')
+valid_features = get_features(vgg16, val_dataloader, output_data_folder, 'valid')
+test_features = get_features(vgg16, test_dataloader, output_data_folder, 'test')
 
 
 # Stitch into one file
