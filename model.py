@@ -151,16 +151,28 @@ class Model(nn.Module):
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
 
-		m = self.sender(target, start_token_idx, max_sentence_length)
+
+		use_different_targets = len(target.shape) == 3
+		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
+
+
+		if not use_different_targets:
+			target_sender = target
+			target_receiver = target
+		else:
+			target_sender = target[:, 0, :]
+			target_receiver = target[:, 1, :]
+
+		m = self.sender(target_sender, start_token_idx, max_sentence_length)
 
 		r_transform = self.receiver(m) # g(.)
 
 		loss = 0
 
-		target = target.view(self.batch_size, 1, -1)
+		target_receiver = target_receiver.view(self.batch_size, 1, -1)
 		r_transform = r_transform.view(self.batch_size, -1, 1)
 
-		target_score = torch.bmm(target, r_transform).squeeze() #scalar
+		target_score = torch.bmm(target_receiver, r_transform).squeeze() #scalar
 
 		distractors_scores = []
 
