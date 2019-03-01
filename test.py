@@ -31,7 +31,7 @@ MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
 vocab_size = 10
-shapes_dataset = 'different_targets'#'balanced' 
+shapes_dataset = 'balanced'#'different_targets'
 
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
@@ -55,7 +55,7 @@ if not os.path.exists(dumps_dir) and not debugging:
 	os.mkdir(dumps_dir)
 
 if prev_model_file_name == None:
-	model_id = '{:%m%d%H%M}'.format(datetime.now())
+	model_id = '{:%m%d%H%M%S%f}'.format(datetime.now())
 	starting_epoch = 0
 else:
 	last_backslash = prev_model_file_name.rfind('/')
@@ -71,9 +71,10 @@ print('Model id: {}'.format(model_id))
 print('|V|: {}'.format(vocab_size))
 print('L: {}'.format(MAX_SENTENCE_LENGTH))
 print('Using gpu: {}'.format(use_gpu))
+print('Dataset: {}'.format(shapes_dataset))
 #################################################
 
-current_model_dir = '{}/{}'.format(dumps_dir, model_id)
+current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, MAX_SENTENCE_LENGTH)
 
 if not os.path.exists(current_model_dir) and not debugging:
 	os.mkdir(current_model_dir)
@@ -125,30 +126,34 @@ for epoch in range(EPOCHS):
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
-	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+	# Skip for now
+	# print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
+	# 	e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
 	# lr_scheduler.step(eval_acc_meter.avg)
 	es.step(eval_acc_meter.avg)
 
 	if not debugging:
 		# Dump models
-		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
-
-		# Dump stats
-		pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		if epoch == 0 or eval_acc_meter.avg > eval_accuracy_meters[-2].avg:
+			torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
 		# Dump messages
-		#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb')) # Cannot do this wth ST-GS
+		# Skip for now
+		#pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 	if es.is_converged:
 		print("Converged in epoch {}".format(e))
 		break
 
+
+if not debugging:
+	# Dump latest stats
+	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 
