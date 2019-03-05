@@ -32,7 +32,7 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 	n_utt = len(counter)
 
 	# Plots
-	top_common_percent = 0.3
+	top_common_percent = 1 if vocab_size < 50 else 0.3
 	plot_token_frequency(counter, n_utt, top_common_percent, model_id, plots_dir)
 	plot_token_distribution(counter, model_id, plots_dir)
 
@@ -56,7 +56,14 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 
 
 
-assert len(sys.argv) >= 3 and len(sys.argv) % 2 != 0, 'You need at least one model id and its vocabulary size'
+# assert len(sys.argv) >= 3 and len(sys.argv) % 2 != 0, 'You need at least one model id and its vocabulary size'
+# You can either input 'model_folder vocab_size' list or it will take the dumps folder #a whole folder that contains everything you want (e.g. dumps)
+
+if len(sys.argv) == 1:
+	all_folders_names = os.listdir('../dumps')
+	inputs = ['{} {}'.format(folder_name, folder_name[folder_name.find('_')+1:folder_name.rfind('_')]) for folder_name in all_folders_names]
+else:
+	inputs = sys.argv[1:]
 
 
 plots_dir = 'plots' # individual
@@ -81,9 +88,8 @@ stats_dict = {
 }
 
 # Read in the settings we want to analyze
-for i in range(1, len(sys.argv), 2):
-	model_id = sys.argv[i]
-	vocab_size = sys.argv[i+1]
+for i in range(len(inputs)):
+	model_id, vocab_size = inputs[i].split()
 
 	L, acc, min_len, max_len, avg_len, n_utt = get_stats(model_id, vocab_size, data_folder, plots_dir)
 
@@ -102,6 +108,8 @@ for i in range(1, len(sys.argv), 2):
 	stats_dict['Max message length'].append(max_len)
 	stats_dict['Avg message length'].append(avg_len)
 	stats_dict['N tokens used'].append(n_utt)
+
+	print('id: {}, |V|: {}, L: {}, Test acc: {}'.format(model_id, vocab_size, L, acc))
 
 # Dump all stats
 df = pd.DataFrame(stats_dict)
