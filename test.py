@@ -23,7 +23,7 @@ debugging = not use_gpu
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
+EPOCHS = 1000 if not debugging else 10#2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -135,7 +135,13 @@ for epoch in range(EPOCHS):
 
 	if not debugging:
 		# Dump models
-		if epoch == 0 or eval_acc_meter.avg > eval_accuracy_meters[-2].avg:
+		if epoch == 0 or eval_acc_meter.avg > np.max([v.avg for v in eval_accuracy_meters[:-1]]):
+			if epoch > 0:
+				# First delete old model file
+				old_model_files = ['{}/{}'.format(current_model_dir, f) for f in os.listdir(current_model_dir) if f.endswith('_model')]
+				if len(old_model_files) > 0:
+					os.remove(old_model_files[0])
+
 			torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
 		# Dump messages
