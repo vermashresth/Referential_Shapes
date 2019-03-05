@@ -1,5 +1,7 @@
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+import logging
 from functools import partial
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
 
 class AverageMeter:
     def __init__(self):
@@ -22,14 +24,25 @@ class AverageMeter:
         self.avg = self.sum / self.count
 
 
-# def get_lr_scheduler(optimizer):
-#     def reduce_lr(self, epoch):
-#         ReduceLROnPlateau._reduce_lr(self, epoch)
+def get_logger(file_name):
+    logger = logging.getLogger("general_logger")
+    handler = logging.FileHandler(file_name, mode='w')
+    formatter = logging.Formatter("%(asctime)s - %(message)s", "%d-%m-%Y %H:%M:%S")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    return logger
 
-#     lr_scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.2, patience=10, threshold=0.005,
-#                                      threshold_mode="rel")
-#     lr_scheduler._reduce_lr = partial(reduce_lr, lr_scheduler)
-#     return lr_scheduler
+
+def get_lr_scheduler(logger, optimizer):
+    def reduce_lr(self, epoch):
+        ReduceLROnPlateau._reduce_lr(self, epoch)
+        logger.info("learning rate is reduced by factor 0.2!")
+    lr_scheduler = ReduceLROnPlateau(optimizer, mode="max", factor=0.2, patience=10, threshold=0.005,
+                                     threshold_mode="rel")
+    lr_scheduler._reduce_lr = partial(reduce_lr, lr_scheduler)
+    return lr_scheduler
+
 
 class EarlyStopping:
     def __init__(self, mode='min', patience=20, threshold=1e-4, threshold_mode='rel'):
