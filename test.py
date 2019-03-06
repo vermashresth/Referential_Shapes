@@ -15,6 +15,7 @@ from build_shapes_dictionaries import *
 
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
+should_dump = not debugging
 
 # seed = 42
 # torch.manual_seed(seed)
@@ -51,7 +52,7 @@ n_image_features, train_data, valid_data, test_data = load_data('shapes/{}'.form
 
 # Settings
 dumps_dir = './dumps'
-if not os.path.exists(dumps_dir) and not debugging:
+if should_dump and not os.path.exists(dumps_dir):
 	os.mkdir(dumps_dir)
 
 if prev_model_file_name == None:
@@ -76,7 +77,7 @@ print('Dataset: {}'.format(shapes_dataset))
 
 current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, MAX_SENTENCE_LENGTH)
 
-if not os.path.exists(current_model_dir) and not debugging:
+if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
 
 
@@ -133,7 +134,7 @@ for epoch in range(EPOCHS):
 	# lr_scheduler.step(eval_acc_meter.avg)
 	es.step(eval_acc_meter.avg)
 
-	if not debugging:
+	if should_dump:
 		# Dump models
 		if epoch == 0 or eval_acc_meter.avg > np.max([v.avg for v in eval_accuracy_meters[:-1]]):
 			if epoch > 0:
@@ -154,7 +155,7 @@ for epoch in range(EPOCHS):
 		break
 
 
-if not debugging:
+if should_dump:
 	# Dump latest stats
 	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
@@ -182,6 +183,6 @@ _, test_acc_meter, test_messages = evaluate(best_model, test_data, bound_idx, MA
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
-if not debugging:
+if should_dump:
 	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
