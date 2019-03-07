@@ -3,6 +3,8 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+
 
 
 class Sender(nn.Module):
@@ -54,9 +56,12 @@ class Sender(nn.Module):
 		# h0, c0, w0
 		h = self.aff_transform(t) # batch_size, hidden_size
 		c = torch.zeros([self.batch_size, self.hidden_size])
+
+		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * (max_sentence_length + 1)
 		
 		if self.use_gpu:
 			c = c.cuda()
+			seq_lengths = seq_lengths.cuda()
 
 		for i in range(max_sentence_length): # or sampled <S>, but this is batched
 			emb = torch.matmul(message[-1], self.embedding) if message[-1].dtype == torch.float32 else self.embedding[message[-1]]
@@ -80,7 +85,13 @@ class Sender(nn.Module):
 
 			message.append(token)
 
-		return torch.stack(message[1:], dim=1) # Skip the first <S>
+			if not self.training:
+				for idx, elem in enumerate(token): 
+					if elem == start_token_idx and seq_lengths[idx] == (max_sentence_length + 1):
+						seq_lengths[idx] = i + 1
+
+		return (torch.stack(message, dim=1),#(torch.stack(message[1:], dim=1),  # Skip the first <S>
+			seq_lengths)
 
 		
 
@@ -163,7 +174,24 @@ class Model(nn.Module):
 			target_sender = target[:, 0, :]
 			target_receiver = target[:, 1, :]
 
-		m = self.sender(target_sender, start_token_idx, max_sentence_length)
+		m, seq_lengths = self.sender(target_sender, start_token_idx, max_sentence_length)
+
+		if not self.training:
+			print('Message from {}:'.format('training' if self.training else 'decoding'))
+			print(m)
+			print('Lengths')
+			print(seq_lengths)
+
+			seq_lengths, perm_idx = seq_lengths.sort(0, descending=True)
+			seq_tensor = m[perm_idx]
+
+			print(seq_tensor)
+
+			cosa = pack_padded_sequence(seq_tensor, seq_lengths)
+			print(cosa)
+
+			assert False
+
 
 		r_transform = self.receiver(m) # g(.)
 

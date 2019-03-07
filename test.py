@@ -24,7 +24,7 @@ should_dump = not debugging
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 10#2
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -128,8 +128,8 @@ for epoch in range(EPOCHS):
 	eval_accuracy_meters.append(eval_acc_meter)
 
 	# Skip for now
-	# print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
-	# 	e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
+		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
 	# lr_scheduler.step(eval_acc_meter.avg)
 	es.step(eval_acc_meter.avg)
