@@ -29,7 +29,7 @@ class Sender(nn.Module):
 
 		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
 		nn.init.constant_(self.aff_transform.bias, 0)
-		
+
 		nn.init.constant_(self.linear_probs.weight, 0)
 		nn.init.constant_(self.linear_probs.bias, 0)
 
@@ -57,7 +57,8 @@ class Sender(nn.Module):
 		h = self.aff_transform(t) # batch_size, hidden_size
 		c = torch.zeros([self.batch_size, self.hidden_size])
 
-		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * (max_sentence_length + 1)
+		initial_length = max_sentence_length + 1
+		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
 		
 		if self.use_gpu:
 			c = c.cuda()
@@ -77,18 +78,24 @@ class Sender(nn.Module):
 				token_hard = torch.zeros_like(token)
 				token_hard.scatter_(-1, torch.argmax(token, dim=-1, keepdim=True), 1.0)
 				token = (token_hard - token).detach() + token
+
+				# Calculate sequence lengths
+				for idx, elem in enumerate(token):
+					if elem[start_token_idx] == 1.0 and seq_lengths[idx] == initial_length:
+						seq_lengths[idx] = i + 1 + 1 # start token always given
 			else:
 				if self.greedy:
 					_, token = torch.max(p, -1)
 				else:
 					token = Categorical(p).sample()
 
+				# Calculate sequence lengths
+				for idx, elem in enumerate(token): 
+					if elem == start_token_idx and seq_lengths[idx] == initial_length:
+						seq_lengths[idx] = i + 1 + 1 # start token always given
+
 			message.append(token)
 
-			if not self.training:
-				for idx, elem in enumerate(token): 
-					if elem == start_token_idx and seq_lengths[idx] == (max_sentence_length + 1):
-						seq_lengths[idx] = i + 1
 
 		return (torch.stack(message, dim=1),#(torch.stack(message[1:], dim=1),  # Skip the first <S>
 			seq_lengths)
@@ -103,7 +110,8 @@ class Receiver(nn.Module):
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
 		self.use_gpu = use_gpu
-		self.lstm_cell = nn.LSTMCell(embedding_dim, hidden_size)
+		# self.lstm_cell = nn.LSTMCell(embedding_dim, hidden_size)
+		self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers=1)
 		self.embedding = nn.Parameter(torch.empty((vocab_size, embedding_dim), dtype=torch.float32))
 		self.aff_transform = nn.Linear(hidden_size, n_image_features)
 
@@ -115,15 +123,15 @@ class Receiver(nn.Module):
 		nn.init.normal_(self.aff_transform.weight, 0, 0.1)
 		nn.init.constant_(self.aff_transform.bias, 0)
 
-		nn.init.xavier_uniform_(self.lstm_cell.weight_ih)
-		nn.init.orthogonal_(self.lstm_cell.weight_hh)
-		nn.init.constant_(self.lstm_cell.bias_ih, val=0)
-		# # cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
-		# # add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
-		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
-		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
+		nn.init.xavier_uniform_(self.lstm.weight_ih_l0)
+		nn.init.orthogonal_(self.lstm.weight_hh_l0)
+		nn.init.constant_(self.lstm.bias_ih_l0, val=0)
+		# cuDNN bias order: https://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnRNNMode_t
+		# add some positive bias for the forget gates [b_i, b_f, b_o, b_g] = [0, 1, 0, 0]
+		nn.init.constant_(self.lstm.bias_hh_l0, val=0)
+		nn.init.constant_(self.lstm.bias_hh_l0[self.hidden_size:2 * self.hidden_size], val=1)
 
-	def forward(self, m):
+	def forward(self, m, seq_lengths):
 		# h0, c0
 		h = torch.zeros([self.batch_size, self.hidden_size])
 		c = torch.zeros([self.batch_size, self.hidden_size])
@@ -133,16 +141,57 @@ class Receiver(nn.Module):
 			c = c.cuda()
 
 		# Need to change to batch dim second to iterate over tokens in message
-		if len(m.shape) == 3:
-			m = m.permute(1, 0, 2)
-		else:
-			m = m.permute(1, 0)
+		# if len(m.shape) == 3: # Is this for different targets?
+		# 	m = m.permute(1, 0, 2)
+		# else:
+		# 	m = m.permute(1, 0)
+		
+		# print('Message from {}:'.format('training' if self.training else 'decoding'))
+		# print(m)
+		# print('Lengths')
+		# print(seq_lengths)
 
-		for token in m:
-			emb = torch.matmul(token, self.embedding) if token.dtype == torch.float32 else self.embedding[token]
-			h, c = self.lstm_cell(emb, (h, c))
 
-		return self.aff_transform(h)
+		emb = torch.matmul(m, self.embedding) if m.dtype == torch.float32 else self.embedding[m]
+		# print("Emb")
+		# print(emb)
+
+		# seq_lengths, perm_idx = seq_lengths.sort(0, descending=True)
+		# seq_tensor = emb[perm_idx]
+
+		# packed_emb = pack_padded_sequence(seq_tensor, seq_lengths, batch_first=True)
+		# print(packed_emb)
+		# print(packed_emb.data.dtype)
+
+
+		emb = emb.permute(1, 0, 2) # No need when using packed sequence
+
+		_packed_output, (h_last, _c) = self.lstm(emb, (h[None, ...], c[None, ...]))
+		# print('---h')
+		# # print(h)
+		# print(h.shape)
+		# print(h[-1].shape)
+		# print(h.squeeze().shape)
+
+		# x, _ = pad_packed_sequence(h, batch_first=True)
+		# print('---padded seq')
+		# print(x)
+
+
+		# print('---Res data')
+		# print(self.aff_transform(h))
+		# print(self.aff_transform(h.squeeze()))
+
+		# print('---Res padded')
+		# print(self.aff_transform(x.data))
+
+		# for token in m:
+		# 	emb = torch.matmul(token, self.embedding) if token.dtype == torch.float32 else self.embedding[token]
+		# 	h, c = self.lstm_cell(emb, (h, c))
+
+		# return self.aff_transform(h)
+
+		return self.aff_transform(h_last)
 
 
 class Model(nn.Module):
@@ -176,24 +225,7 @@ class Model(nn.Module):
 
 		m, seq_lengths = self.sender(target_sender, start_token_idx, max_sentence_length)
 
-		if not self.training:
-			print('Message from {}:'.format('training' if self.training else 'decoding'))
-			print(m)
-			print('Lengths')
-			print(seq_lengths)
-
-			seq_lengths, perm_idx = seq_lengths.sort(0, descending=True)
-			seq_tensor = m[perm_idx]
-
-			print(seq_tensor)
-
-			cosa = pack_padded_sequence(seq_tensor, seq_lengths)
-			print(cosa)
-
-			assert False
-
-
-		r_transform = self.receiver(m) # g(.)
+		r_transform = self.receiver(m, seq_lengths) # g(.)
 
 		loss = 0
 
