@@ -15,18 +15,14 @@ def load_dictionaries(vocab_size):
 	return word_to_idx, idx_to_word, bound_idx
 
 def get_message_length(message, padding_idx):	
-	start_pad_pos = 0
+	length = 0
 
-	for i in reversed(range(len(message))):
+	for i in range(len(message)):
 		if message[i] == padding_idx:
-			start_pad_pos = i
-		else:
-			break
+			return length
+		length += 1
 
-	if start_pad_pos == 0:
-		return len(message)
-	else:
-		return start_pad_pos
+	return length
 
 
 def compute_stats(messages, padding_idx, idx_to_word):
