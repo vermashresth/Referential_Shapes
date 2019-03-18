@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 
 
-def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length, debugging=False):
+def train_one_epoch(model, data, optimizer, debugging=False):
 
 	model.train()
 
@@ -15,7 +15,7 @@ def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length
 
 		target, distractors = d
 
-		loss, acc, _ = model(target, distractors, start_token_idx, max_sentence_length)
+		loss, acc, _ = model(target, distractors)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
@@ -29,7 +29,7 @@ def train_one_epoch(model, data, optimizer, start_token_idx, max_sentence_length
 
 	return loss_meter, acc_meter
 
-def evaluate(model, data, start_token_idx, max_sentence_length, debugging=False):
+def evaluate(model, data, debugging=False):
 	
 	model.eval()
 
@@ -42,7 +42,7 @@ def evaluate(model, data, start_token_idx, max_sentence_length, debugging=False)
 		count += 1
 		target, distractors = d
 
-		loss, acc, m = model(target, distractors, start_token_idx, max_sentence_length)
+		loss, acc, m = model(target, distractors)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())

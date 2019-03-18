@@ -6,7 +6,7 @@ import os
 import sys
 
 import torch
-from model import Sender, Receiver, Model
+from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping #get_lr_scheduler
 from dataloader import load_dictionaries, load_data
@@ -17,17 +17,17 @@ use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
 
-# seed = 42
-# torch.manual_seed(seed)
-# if use_gpu:
-# 	torch.cuda.manual_seed(seed)
+seed = 42
+torch.manual_seed(seed)
+if use_gpu:
+	torch.cuda.manual_seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
-EMBEDDING_DIM = 256
+EPOCHS = 1000 if not debugging else 1
+EMBEDDING_DIM = 256 if not debugging else 4
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 4
+BATCH_SIZE = 128 if not debugging else 3
 MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
@@ -44,7 +44,7 @@ if not does_vocab_exist(vocab_size):
 	build_vocab(vocab_size)
 
 # Load vocab
-word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
+word_to_idx, idx_to_word, sos_idx, eos_idx = load_dictionaries('shapes', vocab_size)
 vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
@@ -82,7 +82,8 @@ if should_dump and not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
+	sos_idx, eos_idx, MAX_SENTENCE_LENGTH, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -116,13 +117,13 @@ for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
 	epoch_loss_meter, epoch_acc_meter = train_one_epoch(
-		model, train_data, optimizer, bound_idx, MAX_SENTENCE_LENGTH, debugging)
+		model, train_data, optimizer, debugging)
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, bound_idx, MAX_SENTENCE_LENGTH, debugging)
+		model, valid_data, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
@@ -171,7 +172,8 @@ if debugging:
 else:
 	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 	best_model = Model(n_image_features, vocab_size,
-		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, use_gpu)
+		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
+		sos_idx, eos_idx, MAX_SENTENCE_LENGTH, use_gpu)
 	best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 	state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 	best_model.load_state_dict(state)
@@ -179,7 +181,7 @@ else:
 if use_gpu:
 	best_model = best_model.cuda()
 
-_, test_acc_meter, test_messages = evaluate(best_model, test_data, bound_idx, MAX_SENTENCE_LENGTH, debugging)
+_, test_acc_meter, test_messages = evaluate(best_model, test_data, debugging)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 
