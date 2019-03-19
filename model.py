@@ -216,6 +216,9 @@ class Model(nn.Module):
 		distractors_scores = []
 
 		for d in distractors:
+			if use_different_targets:
+				d = d[:, 0, :] # Just use the first distractor
+			
 			d = d.view(self.batch_size, 1, -1)
 			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
