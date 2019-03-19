@@ -21,7 +21,7 @@ def load_data(folder, batch_size, k):
 	test_features = np.load('data/{}/test_features.npy'.format(folder))
 	# 2d arrays of 4096 features
 
-	n_image_features = valid_features.shape[1] # 4096
+	n_image_features = valid_features.shape[-1] # 4096
 
 	train_dataset = ImageDataset(train_features)
 	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
