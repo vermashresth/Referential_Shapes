@@ -34,11 +34,12 @@ MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
 vocab_size = 10
-shapes_dataset = 'balanced'#'different_targets'
+shapes_dataset = 'balanced'
 
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
 	MAX_SENTENCE_LENGTH = int(sys.argv[2])
+	shapes_dataset = sys.argv[3]
 
 
 # Create vocab if there is not one for the desired size already
