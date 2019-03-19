@@ -10,10 +10,9 @@ def load_dictionaries(folder, vocab_size):
 	    d = pickle.load(f)
 	    word_to_idx = d["word_to_idx"] # dictionary w->i
 	    idx_to_word = d["idx_to_word"] # list of words
-	    sos_idx = word_to_idx["<SOS>"] # second to last word in vocab
-	    eos_idx = word_to_idx["<EOS>"] # last word in vocab
+	    bound_idx = word_to_idx["<S>"] # last word in vocab
 
-	return word_to_idx, idx_to_word, sos_idx, eos_idx
+	return word_to_idx, idx_to_word, bound_idx
 
 
 def load_data(folder, batch_size, k):
@@ -22,7 +21,7 @@ def load_data(folder, batch_size, k):
 	test_features = np.load('data/{}/test_features.npy'.format(folder))
 	# 2d arrays of 4096 features
 
-	n_image_features = valid_features.shape[1] # 4096
+	n_image_features = valid_features.shape[-1] # 4096
 
 	train_dataset = ImageDataset(train_features)
 	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
