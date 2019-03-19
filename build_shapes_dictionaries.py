@@ -1,8 +1,8 @@
 import pickle
 import os
 
-START_TOKEN = '<SOS>'
-END_TOKEN = '<EOS>'
+# START_TOKEN = '<SOS>'
+BOUND_TOKEN = '<S>'
 shapes_vocab_path = 'data/shapes'
 
 def does_vocab_exist(vocab_size):
@@ -12,16 +12,16 @@ def build_vocab(vocab_size):
 	idx_to_word = []
 	word_to_idx = {}
 
-	for i in range(vocab_size - 2):
+	for i in range(vocab_size - 1):
 		word = str(i)
 		idx_to_word.append(word)
 		word_to_idx[word] = i
 
-	idx_to_word.append(START_TOKEN)
-	word_to_idx[START_TOKEN] = len(idx_to_word) - 1
+	# idx_to_word.append(START_TOKEN)
+	# word_to_idx[START_TOKEN] = len(idx_to_word) - 1
 
-	idx_to_word.append(END_TOKEN)
-	word_to_idx[END_TOKEN] = len(idx_to_word) - 1
+	idx_to_word.append(BOUND_TOKEN)
+	word_to_idx[BOUND_TOKEN] = len(idx_to_word) - 1
 
 
 	with open('{}/dict_{}.pckl'.format(shapes_vocab_path, vocab_size), 'wb') as f:

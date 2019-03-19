@@ -24,10 +24,10 @@ if use_gpu:
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 1
-EMBEDDING_DIM = 256 if not debugging else 4
+EPOCHS = 1000 if not debugging else 2
+EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 3
+BATCH_SIZE = 128 if not debugging else 4
 MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
@@ -44,8 +44,8 @@ if not does_vocab_exist(vocab_size):
 	build_vocab(vocab_size)
 
 # Load vocab
-word_to_idx, idx_to_word, sos_idx, eos_idx = load_dictionaries('shapes', vocab_size)
-vocab_size = len(word_to_idx) # mscoco: 10000
+word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
+#vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
 n_image_features, train_data, valid_data, test_data = load_data('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
@@ -83,7 +83,7 @@ if should_dump and not os.path.exists(current_model_dir):
 
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-	sos_idx, eos_idx, MAX_SENTENCE_LENGTH, use_gpu)
+	bound_idx, MAX_SENTENCE_LENGTH, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -173,7 +173,7 @@ else:
 	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 	best_model = Model(n_image_features, vocab_size,
 		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-		sos_idx, eos_idx, MAX_SENTENCE_LENGTH, use_gpu)
+		bound_idx, MAX_SENTENCE_LENGTH, use_gpu)
 	best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 	state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 	best_model.load_state_dict(state)

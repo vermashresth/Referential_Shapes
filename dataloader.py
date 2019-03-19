@@ -10,10 +10,9 @@ def load_dictionaries(folder, vocab_size):
 	    d = pickle.load(f)
 	    word_to_idx = d["word_to_idx"] # dictionary w->i
 	    idx_to_word = d["idx_to_word"] # list of words
-	    sos_idx = word_to_idx["<SOS>"] # second to last word in vocab
-	    eos_idx = word_to_idx["<EOS>"] # last word in vocab
+	    bound_idx = word_to_idx["<S>"] # last word in vocab
 
-	return word_to_idx, idx_to_word, sos_idx, eos_idx
+	return word_to_idx, idx_to_word, bound_idx
 
 
 def load_data(folder, batch_size, k):

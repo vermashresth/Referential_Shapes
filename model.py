@@ -8,15 +8,14 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
 		embedding_dim, hidden_size, batch_size, 
-		start_token_idx, end_token_idx, max_sentence_length,
+		bound_idx, max_sentence_length,
 		use_gpu, greedy=True):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
 		self.vocab_size = vocab_size
-		self.start_token_idx = start_token_idx
-		self.end_token_idx = end_token_idx
+		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.greedy = greedy
 		self.use_gpu = use_gpu
@@ -51,9 +50,9 @@ class Sender(nn.Module):
 			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
 				message[0] = message[0].cuda()
-			message[0][:, self.start_token_idx] = 1.0
+			message[0][:, self.bound_token_idx] = 1.0
 		else:
-			message = [torch.full((self.batch_size, ), fill_value=self.start_token_idx, dtype=torch.int64)]
+			message = [torch.full((self.batch_size, ), fill_value=self.bound_token_idx, dtype=torch.int64)]
 			if self.use_gpu:
 				message[0] = message[0].cuda()
 
@@ -85,7 +84,7 @@ class Sender(nn.Module):
 
 				# Calculate sequence lengths
 				for idx, elem in enumerate(token):
-					if elem[self.end_token_idx] == 1.0 and seq_lengths[idx] == initial_length:
+					if elem[self.bound_token_idx] == 1.0 and seq_lengths[idx] == initial_length:
 						seq_lengths[idx] = i + 1 + 1 # start token always given
 			else:
 				if self.greedy:
@@ -95,7 +94,7 @@ class Sender(nn.Module):
 
 				# Calculate sequence lengths
 				for idx, elem in enumerate(token): 
-					if elem == self.end_token_idx and seq_lengths[idx] == initial_length:
+					if elem == self.bound_token_idx and seq_lengths[idx] == initial_length:
 						seq_lengths[idx] = i + 1 + 1 # start token always given
 
 			message.append(token)
@@ -105,13 +104,12 @@ class Sender(nn.Module):
 
 class Receiver(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, batch_size, eos_idx, use_gpu):
+		embedding_dim, hidden_size, batch_size, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.hidden_size = hidden_size
 		self.use_gpu = use_gpu
-		self.pad_idx = eos_idx
 
 		self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers=1, batch_first=True)
 		self.embedding = nn.Parameter(torch.empty((vocab_size, embedding_dim), dtype=torch.float32))
@@ -168,19 +166,18 @@ def pad(m, seq_lengths, pad_idx, is_training, use_gpu):
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
 		embedding_dim, hidden_size, batch_size, 
-		start_token_idx, end_token_idx, max_sentence_length, use_gpu):
+		bound_idx, max_sentence_length, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.use_gpu = use_gpu
-		self.start_token_idx = start_token_idx
-		self.end_token_idx = end_token_idx
+		self.bound_token_idx = bound_idx
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
-			start_token_idx, end_token_idx, max_sentence_length, use_gpu)
+			bound_idx, max_sentence_length, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, end_token_idx, use_gpu)		
+			embedding_dim, hidden_size, batch_size, use_gpu)		
 
 	def forward(self, target, distractors):
 		if self.use_gpu:
@@ -202,7 +199,7 @@ class Model(nn.Module):
 		m, seq_lengths = self.sender(target_sender)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
-		m = pad(m, seq_lengths, self.end_token_idx, self.training, self.use_gpu)	
+		m = pad(m, seq_lengths, self.bound_token_idx, self.training, self.use_gpu)	
 
 		# Forward pass on Receiver with the message
 		r_transform = self.receiver(m) # g(.)
@@ -241,5 +238,7 @@ class Model(nn.Module):
 
 		accuracy = max_idx == 0 # target is the first element
 		accuracy = accuracy.to(dtype=torch.float32)
+
+		loss = seq_lengths.float() * loss		
 
 		return torch.mean(loss), torch.mean(accuracy), m
