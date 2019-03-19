@@ -11,11 +11,13 @@ from run import train_one_epoch, evaluate
 from utils import EarlyStopping #get_lr_scheduler
 from dataloader import load_dictionaries, load_data
 from build_shapes_dictionaries import *
+from decode import dump_words
 
 
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
+should_covert_to_words = not debugging
 
 seed = 42
 torch.manual_seed(seed)
@@ -24,7 +26,7 @@ if use_gpu:
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
+EPOCHS = 1000 if not debugging else 1
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -169,6 +171,7 @@ if should_dump:
 
 if debugging:
 	best_model = model
+	best_epoch = e
 else:
 	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 	best_model = Model(n_image_features, vocab_size,
@@ -188,3 +191,6 @@ print('Test accuracy: {}'.format(test_acc_meter.avg))
 if should_dump:
 	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+
+	if should_covert_to_words:
+		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))

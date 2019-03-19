@@ -5,37 +5,44 @@ import sys
 
 from dataloader import load_dictionaries
 
-use_gpu = torch.cuda.is_available()
 
-assert len(sys.argv) == 2, 'Need dumped messages path'
+def dump_words(current_model_dir, test_messages, idx_to_word, save_filename):
+	# Decode test messages
+	words = []
 
-messages_path = sys.argv[1]
+	for m in test_messages:
+		words.append([idx_to_word[t] for t in m])
 
-model_id, vocab_size, l = messages_path.split('_')
+	res_filename = '{}/{}_w.p'.format(current_model_dir, save_filename)
 
-# Load vocab
-_word_to_idx, idx_to_word, _bound_idx = load_dictionaries('shapes', vocab_size)
+	pickle.dump(words, open(res_filename, 'wb'))
+
+	return res_filename
 
 
-# Settings
-dumps_dir = './dumps'
+# use_gpu = torch.cuda.is_available()
 
-current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, l)
+# assert len(sys.argv) == 2, 'Need dumped messages path'
 
-test_messages_filename = [f for f in os.listdir(current_model_dir) if 'test_messages.p' in f]
-assert len(test_messages_filename) == 1, 'More than one file?'
-test_messages_filename = test_messages_filename[0]
+# messages_path = sys.argv[1]
 
-test_messages = pickle.load(open('{}/{}'.format(current_model_dir, test_messages_filename), 'rb'))
+# model_id, vocab_size, l = messages_path.split('_')
 
-# Decode test messages
-words = []
+# # Load vocab
+# _word_to_idx, idx_to_word, _bound_idx = load_dictionaries('shapes', vocab_size)
 
-for m in test_messages:
-	words.append([idx_to_word[t] for t in m])
 
-res_filename = '{}/{}_w.p'.format(current_model_dir, test_messages_filename[:-2])
+# # Settings
+# dumps_dir = './dumps'
 
-pickle.dump(words, open(res_filename, 'wb'))
+# current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, l)
 
-print('File dumped to {}'.format(res_filename))
+# test_messages_filename = [f for f in os.listdir(current_model_dir) if 'test_messages.p' in f]
+# assert len(test_messages_filename) == 1, 'More than one file?'
+# test_messages_filename = test_messages_filename[0]
+
+# test_messages = pickle.load(open('{}/{}'.format(current_model_dir, test_messages_filename), 'rb'))
+
+# res_filename = dump_words(current_model_dir, test_messages, idx_to_word, test_messages_filename[:-2])
+
+# print('File dumped to {}'.format(res_filename))
