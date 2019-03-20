@@ -172,12 +172,28 @@ class Model(nn.Module):
 		self.batch_size = batch_size
 		self.use_gpu = use_gpu
 		self.bound_token_idx = bound_idx
+		self.max_sentence_length = max_sentence_length
+		self.vocab_size = vocab_size
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
 			bound_idx, max_sentence_length, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, use_gpu)		
+			embedding_dim, hidden_size, batch_size, use_gpu)
+
+	def _transform_message_binary(self, m):
+		if self.training:
+			# return m.float()
+			# print(m)
+			oracle = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
+			oracle[:,:,self.bound_token_idx] = 1.0
+			binary_m = (m == oracle).all(dim=-1)
+			# print(binary_m)
+			return binary_m.float()
+		else:
+			# 1 if EOS, 0 otherwise
+			binary_m = m == self.bound_token_idx
+			return binary_m.float()
 
 	def forward(self, target, distractors):
 		if self.use_gpu:
@@ -242,6 +258,26 @@ class Model(nn.Module):
 		accuracy = max_idx == 0 # target is the first element
 		accuracy = accuracy.to(dtype=torch.float32)
 
-		loss = seq_lengths.float() * loss		
 
-		return torch.mean(loss), torch.mean(accuracy), m
+		loss = torch.mean(loss)
+
+		# Length penalization - simple
+		# loss = seq_lengths.float() * loss		
+
+		# Length penalization - BCE
+		bce_loss = nn.BCELoss()
+
+		# if self.training:
+		# 	pad_target = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
+		# 	pad_target[:, :, self.bound_token_idx] = 1.0
+		# else:
+		pad_target = torch.ones([self.batch_size, self.max_sentence_length+1])
+		
+		if self.use_gpu:
+			pad_target = pad_target.cuda()
+
+		length_loss = bce_loss(self._transform_message_binary(m), pad_target)
+
+		loss = loss + 0.3 * length_loss
+
+		return loss, torch.mean(accuracy), m
