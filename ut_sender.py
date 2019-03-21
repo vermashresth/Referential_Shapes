@@ -25,7 +25,7 @@ class TestSender(unittest.TestCase):
                 [0.0, 0.0, 1.0]
             ])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, False)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([initial_length, 2]))))
 
         timestep = 2
@@ -34,7 +34,7 @@ class TestSender(unittest.TestCase):
                 [0.1, 0.0, 0.0]
             ])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, False)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([initial_length, 2]))))
 
         timestep = 3
@@ -43,7 +43,7 @@ class TestSender(unittest.TestCase):
                 [0.0, 0.0, 0.0]
             ])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, False)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([initial_length, 2]))))
 
 
@@ -56,19 +56,19 @@ class TestSender(unittest.TestCase):
         timestep = 1
         token = torch.tensor([1, 2])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, True)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([initial_length, 2]))))
 
         timestep = 2
         token = torch.tensor([2, 2])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, True)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([3, 2]))))
 
         timestep = 3
         token = torch.tensor([2, 0])
 
-        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep, True)
+        self.sender._calculate_seq_len(seq_lengths, token, initial_length, timestep)
         self.assertTrue(torch.all(torch.eq(seq_lengths, torch.tensor([3, 2]))))
 
     
