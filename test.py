@@ -8,7 +8,7 @@ import sys
 import torch
 from model import Model
 from run import train_one_epoch, evaluate
-from utils import EarlyStopping #get_lr_scheduler
+from utils import EarlyStopping
 from dataloader import load_dictionaries, load_data
 from build_shapes_dictionaries import *
 from decode import dump_words
@@ -18,6 +18,7 @@ use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
 should_covert_to_words = not debugging
+should_print_images_metadata = True
 
 seed = 42
 torch.manual_seed(seed)
@@ -26,10 +27,10 @@ if use_gpu:
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 1
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 4
+BATCH_SIZE = 128 if not debugging else 2
 MAX_SENTENCE_LENGTH = 13 if not debugging else 5
 K = 3  # number of distractors
 
@@ -98,7 +99,6 @@ if use_gpu:
 	model = model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-# lr_scheduler = get_lr_scheduler(optimizer)
 es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
 # Train
@@ -116,26 +116,29 @@ else:
 	eval_accuracy_meters = pickle.load(open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
 
+word_counts = torch.zeros([vocab_size], dtype=torch.int64)
+if use_gpu:
+	word_counts = word_counts.cuda()
+
 for epoch in range(EPOCHS):
 	e = epoch + starting_epoch
 
-	epoch_loss_meter, epoch_acc_meter = train_one_epoch(
-		model, train_data, optimizer, debugging)
+	epoch_loss_meter, epoch_acc_meter, epoch_word_counts = train_one_epoch(
+		model, train_data, optimizer, word_counts, debugging)
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
+	word_counts += epoch_word_counts
 
 	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, debugging)
+		model, valid_data, word_counts, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 
-	# Skip for now
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
-	# lr_scheduler.step(eval_acc_meter.avg)
 	es.step(eval_acc_meter.avg)
 
 	if should_dump:
@@ -185,7 +188,7 @@ else:
 if use_gpu:
 	best_model = best_model.cuda()
 
-_, test_acc_meter, test_messages = evaluate(best_model, test_data, debugging)
+_, test_acc_meter, test_messages = evaluate(best_model, test_data, word_counts, debugging)
 
 print('Test accuracy: {}'.format(test_acc_meter.avg))
 

@@ -44,8 +44,17 @@ class Sender(nn.Module):
 		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
 		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
 
-	def forward(self, t, tau=1.2):
+	def _calculate_seq_len(self, seq_lengths, token, initial_length, seq_pos):	
+		if self.training:
+			max_predicted, vocab_index = torch.max(token, dim=1)
+			mask = (vocab_index == self.bound_token_idx) * (max_predicted == 1.0)
+		else:
+			mask = token == self.bound_token_idx
 
+		mask *= seq_lengths == initial_length
+		seq_lengths[mask.nonzero()] = seq_pos + 1 # start symbol always appended
+
+	def forward(self, t, word_counts, tau=1.2):
 		if self.training:
 			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
@@ -62,16 +71,26 @@ class Sender(nn.Module):
 
 		initial_length = self.max_sentence_length + 1
 		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
+
+		CEloss = nn.CrossEntropyLoss(reduction='none')
 		
 		if self.use_gpu:
 			c = c.cuda()
 			seq_lengths = seq_lengths.cuda()
 
 		for i in range(self.max_sentence_length): # or sampled <EOS>, but this is batched
-			emb = torch.matmul(message[-1], self.embedding) if message[-1].dtype == torch.float32 else self.embedding[message[-1]]
+			emb = torch.matmul(message[-1], self.embedding) if self.training else self.embedding[message[-1]]
 			h, c = self.lstm_cell(emb, (h, c))
 
 			p = F.softmax(self.linear_probs(h), dim=1)
+
+			# print(p)
+			# print(p.shape)
+
+			# vl_loss = CEloss(p, )
+			
+
+			# assert False
 
 			if self.training:	
 				rohc = RelaxedOneHotCategorical(tau, p)
@@ -81,23 +100,16 @@ class Sender(nn.Module):
 				token_hard = torch.zeros_like(token)
 				token_hard.scatter_(-1, torch.argmax(token, dim=-1, keepdim=True), 1.0)
 				token = (token_hard - token).detach() + token
-
-				# Calculate sequence lengths
-				for idx, elem in enumerate(token):
-					if elem[self.bound_token_idx] == 1.0 and seq_lengths[idx] == initial_length:
-						seq_lengths[idx] = i + 1 + 1 # start token always given
 			else:
 				if self.greedy:
 					_, token = torch.max(p, -1)
 				else:
 					token = Categorical(p).sample()
 
-				# Calculate sequence lengths
-				for idx, elem in enumerate(token): 
-					if elem == self.bound_token_idx and seq_lengths[idx] == initial_length:
-						seq_lengths[idx] = i + 1 + 1 # start token always given
-
 			message.append(token)
+
+			self._calculate_seq_len(seq_lengths, token, 
+				initial_length, seq_pos=i)
 
 		return (torch.stack(message, dim=1), seq_lengths)
 
@@ -140,28 +152,11 @@ class Receiver(nn.Module):
 			h = h.cuda()
 			c = c.cuda()		
 
-		emb = torch.matmul(m, self.embedding) if m.dtype == torch.float32 else self.embedding[m]
+		emb = torch.matmul(m, self.embedding) if self.training else self.embedding[m]
 		_, (h, c) = self.lstm(emb, (h[None, ...], c[None, ...]))
 
 		return self.aff_transform(h)
 
-
-def pad(m, seq_lengths, pad_idx, is_training, use_gpu):
-	batch_size = m.shape[0]
-	max_len = m.shape[1]
-	vocab_size = pad_idx + 1
-
-	for e_i in range(batch_size):
-		for i in range(seq_lengths[e_i], max_len):
-			if is_training:
-				m[e_i][i] = torch.zeros([1, vocab_size], dtype=torch.float32)
-				m[e_i][i][pad_idx] = 1.0
-				if use_gpu:
-					m[e_i][i] = m[e_i][i].cuda()
-			else:
-				m[e_i][i] = pad_idx
-
-	return m
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
@@ -174,6 +169,8 @@ class Model(nn.Module):
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.vocab_size = vocab_size
+		self.vl_loss_weight = 0.3 #lambda
+		self.pad_weight = 1.0 #alpha
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
@@ -181,21 +178,78 @@ class Model(nn.Module):
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)
 
-	def _transform_message_binary(self, m):
-		if self.training:
-			# return m.float()
-			# print(m)
-			oracle = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
-			oracle[:,:,self.bound_token_idx] = 1.0
-			binary_m = (m == oracle).all(dim=-1)
-			# print(binary_m)
-			return binary_m.float()
-		else:
-			# 1 if EOS, 0 otherwise
-			binary_m = m == self.bound_token_idx
-			return binary_m.float()
+	# def _transform_message_binary(self, m):
+	# 	if self.training:
+	# 		return m[:,:,-1]
+	# 	else:
+	# 		# 1 if EOS, 0 otherwise
+	# 		mask = (m == self.bound_token_idx).float()
+	# 		binary_m = m.float() * mask
+	# 		zero_tensor = torch.tensor(0.0)
+	# 		if self.use_gpu:
+	# 			zero_tensor = zero_tensor.cuda()
+	# 		binary_m = torch.max(zero_tensor, binary_m - (self.vocab_size - 1 - 1))
+	# 		return binary_m.float()
 
-	def forward(self, target, distractors):
+	def _pad(self, m, seq_lengths):
+		max_len = m.shape[1]
+
+		for e_i in range(self.batch_size):
+			for i in range(seq_lengths[e_i], max_len):
+				if self.training:
+					m[e_i][i] = torch.zeros([1, self.vocab_size], dtype=torch.float32)
+					m[e_i][i][self.bound_token_idx] = 1.0
+					if self.use_gpu:
+						m[e_i][i] = m[e_i][i].cuda()
+				else:
+					m[e_i][i] = self.bound_token_idx
+
+		# max_len = m.shape[1] # self.max_sentence_length+1
+		
+		# print(seq_lengths)
+
+		# rows = torch.tensor()
+
+		# i = torch.LongTensor([[0],
+		# 					  [5]])
+		# v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
+		# mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
+		
+		# mask = (m[:,1:] == self.bound_token_idx)
+
+		# mask = (m == self.bound_token_idx)
+		# print(mask)
+		# print(m)
+		# # print(m[[0,5]])
+
+		# indices = mask.nonzero()
+
+		# offset = torch.zeros([indices.shape[0], 2], dtype=torch.int64)
+		# offset[:, 1] = 1
+
+		# print(offset)
+
+		# print(mask.nonzero() + offset)
+
+		# m[mask.nonzero() + offset] = self.bound_token_idx
+		# # m[0,5] = self.bound_token_idx
+		# print(m)
+
+		return m
+
+	def _get_word_counts(self, m):
+		if self.training:
+			c = m.sum(dim=1).sum(dim=0).long()
+		else:
+			c = torch.zeros([self.vocab_size], dtype=torch.int64)
+			if self.use_gpu:
+				c = c.cuda()
+
+			for w_idx in range(self.vocab_size):
+				c[w_idx] = (m == w_idx).sum()
+		return c
+
+	def forward(self, target, distractors, word_counts=None):
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
@@ -212,13 +266,16 @@ class Model(nn.Module):
 
 
 		# Forward pass on Sender with its target
-		m, seq_lengths = self.sender(target_sender)
+		m, seq_lengths = self.sender(target_sender, word_counts)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
-		m = pad(m, seq_lengths, self.bound_token_idx, self.training, self.use_gpu)	
+		m = self._pad(m, seq_lengths)
+
+		w_counts = self._get_word_counts(m)
 
 		# Forward pass on Receiver with the message
 		r_transform = self.receiver(m) # g(.)
+
 
 
 		# Loss calculation
@@ -259,25 +316,40 @@ class Model(nn.Module):
 		accuracy = accuracy.to(dtype=torch.float32)
 
 
-		loss = torch.mean(loss)
+		vl_loss = 0.0
 
-		# Length penalization - simple
+
+		loss = loss + self.vl_loss_weight * vl_loss
+
+		return torch.mean(loss), torch.mean(accuracy), m, w_counts
+
+
+
+
+
+###############
+# Length penalization - simple
 		# loss = seq_lengths.float() * loss		
 
 		# Length penalization - BCE
-		bce_loss = nn.BCELoss()
+		# bce_loss = nn.BCELoss(reduction='none')
 
-		# if self.training:
-		# 	pad_target = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
-		# 	pad_target[:, :, self.bound_token_idx] = 1.0
-		# else:
-		pad_target = torch.ones([self.batch_size, self.max_sentence_length+1])
+		# # if self.training:
+		# # 	pad_target = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
+		# # 	pad_target[:, :, self.bound_token_idx] = 1.0
+		# # else:
+		# pad_target = torch.ones([self.batch_size, self.max_sentence_length+1])
+
+		# # print(self.training)
+		# # print('Binary message')
+		# # print(self._transform_message_binary(m))
 		
-		if self.use_gpu:
-			pad_target = pad_target.cuda()
+		# if self.use_gpu:
+		# 	pad_target = pad_target.cuda()
 
-		length_loss = bce_loss(self._transform_message_binary(m), pad_target)
+		# length_loss = bce_loss(self._transform_message_binary(m), pad_target).mean(dim=-1)
 
-		loss = loss + 0.3 * length_loss
+		# # print(loss)
+		# # print(length_loss)
 
-		return loss, torch.mean(accuracy), m
+		# loss = loss + self.vl_loss_weight * length_loss

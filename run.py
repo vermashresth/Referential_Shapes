@@ -3,33 +3,37 @@ import torch
 import torch.nn as nn
 
 
-def train_one_epoch(model, data, optimizer, debugging=False):
+def train_one_epoch(model, data, optimizer, word_counts, debugging=False):
 
 	model.train()
 
 	loss_meter = AverageMeter()
 	acc_meter = AverageMeter()
 
-	for d in data:
+	for i, d in enumerate(data):
 		optimizer.zero_grad()
 
 		target, distractors = d
 
-		loss, acc, _ = model(target, distractors)
+		loss, acc, _m, batch_w_counts = model(target, distractors, word_counts)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
 
+		if i == 0:
+			w_counts = batch_w_counts
+		else:
+			w_counts += batch_w_counts
+
 		loss.backward()
 		optimizer.step()
 
-
-		if debugging:
+		if debugging and i == 2:
 			break
 
-	return loss_meter, acc_meter
+	return loss_meter, acc_meter, w_counts
 
-def evaluate(model, data, debugging=False):
+def evaluate(model, data, word_counts, debugging=False):
 	
 	model.eval()
 
@@ -42,7 +46,7 @@ def evaluate(model, data, debugging=False):
 		count += 1
 		target, distractors = d
 
-		loss, acc, m = model(target, distractors)
+		loss, acc, m, _w_counts = model(target, distractors, word_counts)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
