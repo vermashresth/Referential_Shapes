@@ -54,7 +54,14 @@ class Sender(nn.Module):
 		mask *= seq_lengths == initial_length
 		seq_lengths[mask.nonzero()] = seq_pos + 1 # start symbol always appended
 
-	def forward(self, t, word_counts, tau=1.2):
+	def _discretize_token(self, token):
+		if self.training:
+			_, idx = torch.max(token, dim=1)
+			return idx
+		else:
+			return token
+
+	def forward(self, t, word_counts, vl_loss_weight, tau=1.2):
 		if self.training:
 			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
@@ -72,7 +79,15 @@ class Sender(nn.Module):
 		initial_length = self.max_sentence_length + 1
 		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
 
-		CEloss = nn.CrossEntropyLoss(reduction='none')
+		ce_loss = nn.CrossEntropyLoss(reduction='none')
+
+		denominator = word_counts.sum()
+		if denominator > 0:
+			normalized_word_counts = word_counts.float() / denominator
+		else:
+			normalized_word_counts = word_counts.float()
+
+		vl_loss = 0.0
 		
 		if self.use_gpu:
 			c = c.cuda()
@@ -82,15 +97,8 @@ class Sender(nn.Module):
 			emb = torch.matmul(message[-1], self.embedding) if self.training else self.embedding[message[-1]]
 			h, c = self.lstm_cell(emb, (h, c))
 
-			p = F.softmax(self.linear_probs(h), dim=1)
-
-			# print(p)
-			# print(p.shape)
-
-			# vl_loss = CEloss(p, )
-			
-
-			# assert False
+			vocab_scores = self.linear_probs(h)
+			p = F.softmax(vocab_scores, dim=1)
 
 			if self.training:	
 				rohc = RelaxedOneHotCategorical(tau, p)
@@ -109,9 +117,12 @@ class Sender(nn.Module):
 			message.append(token)
 
 			self._calculate_seq_len(seq_lengths, token, 
-				initial_length, seq_pos=i)
+				initial_length, seq_pos=i+1)
 
-		return (torch.stack(message, dim=1), seq_lengths)
+			if vl_loss_weight > 0:
+				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
+
+		return (torch.stack(message, dim=1), seq_lengths, vl_loss)
 
 
 class Receiver(nn.Module):
@@ -161,7 +172,7 @@ class Receiver(nn.Module):
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length, use_gpu):
+		bound_idx, max_sentence_length, vl_loss_weight, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
@@ -169,27 +180,14 @@ class Model(nn.Module):
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.vocab_size = vocab_size
-		self.vl_loss_weight = 0.3 #lambda
-		self.pad_weight = 1.0 #alpha
+		self.vl_loss_weight = vl_loss_weight#0.3 #lambda
+		# self.bound_weight = 1.0 #alpha
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
 			bound_idx, max_sentence_length, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)
-
-	# def _transform_message_binary(self, m):
-	# 	if self.training:
-	# 		return m[:,:,-1]
-	# 	else:
-	# 		# 1 if EOS, 0 otherwise
-	# 		mask = (m == self.bound_token_idx).float()
-	# 		binary_m = m.float() * mask
-	# 		zero_tensor = torch.tensor(0.0)
-	# 		if self.use_gpu:
-	# 			zero_tensor = zero_tensor.cuda()
-	# 		binary_m = torch.max(zero_tensor, binary_m - (self.vocab_size - 1 - 1))
-	# 		return binary_m.float()
 
 	def _pad(self, m, seq_lengths):
 		max_len = m.shape[1]
@@ -208,31 +206,21 @@ class Model(nn.Module):
 		
 		# print(seq_lengths)
 
-		# rows = torch.tensor()
+		# # rows = torch.tensor()
 
-		# i = torch.LongTensor([[0],
-		# 					  [5]])
-		# v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
-		# mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
+		# # i = torch.LongTensor([[0],
+		# # 					  [5]])
+		# # v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
+		# # mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
 		
-		# mask = (m[:,1:] == self.bound_token_idx)
+		# # mask = (m[:,1:] == self.bound_token_idx)
 
-		# mask = (m == self.bound_token_idx)
-		# print(mask)
-		# print(m)
-		# # print(m[[0,5]])
-
+		# mask = m == self.bound_token_idx
+		
 		# indices = mask.nonzero()
 
-		# offset = torch.zeros([indices.shape[0], 2], dtype=torch.int64)
-		# offset[:, 1] = 1
-
-		# print(offset)
-
-		# print(mask.nonzero() + offset)
-
-		# m[mask.nonzero() + offset] = self.bound_token_idx
-		# # m[0,5] = self.bound_token_idx
+		# print(indices)
+		
 		# print(m)
 
 		return m
@@ -266,7 +254,7 @@ class Model(nn.Module):
 
 
 		# Forward pass on Sender with its target
-		m, seq_lengths = self.sender(target_sender, word_counts)
+		m, seq_lengths, vl_loss = self.sender(target_sender, word_counts, self.vl_loss_weight)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
 		m = self._pad(m, seq_lengths)
@@ -275,7 +263,6 @@ class Model(nn.Module):
 
 		# Forward pass on Receiver with the message
 		r_transform = self.receiver(m) # g(.)
-
 
 
 		# Loss calculation
@@ -315,41 +302,6 @@ class Model(nn.Module):
 		accuracy = max_idx == 0 # target is the first element
 		accuracy = accuracy.to(dtype=torch.float32)
 
-
-		vl_loss = 0.0
-
-
 		loss = loss + self.vl_loss_weight * vl_loss
 
 		return torch.mean(loss), torch.mean(accuracy), m, w_counts
-
-
-
-
-
-###############
-# Length penalization - simple
-		# loss = seq_lengths.float() * loss		
-
-		# Length penalization - BCE
-		# bce_loss = nn.BCELoss(reduction='none')
-
-		# # if self.training:
-		# # 	pad_target = torch.zeros([self.batch_size, self.max_sentence_length+1, self.vocab_size])
-		# # 	pad_target[:, :, self.bound_token_idx] = 1.0
-		# # else:
-		# pad_target = torch.ones([self.batch_size, self.max_sentence_length+1])
-
-		# # print(self.training)
-		# # print('Binary message')
-		# # print(self._transform_message_binary(m))
-		
-		# if self.use_gpu:
-		# 	pad_target = pad_target.cuda()
-
-		# length_loss = bce_loss(self._transform_message_binary(m), pad_target).mean(dim=-1)
-
-		# # print(loss)
-		# # print(length_loss)
-
-		# loss = loss + self.vl_loss_weight * length_loss
