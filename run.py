@@ -28,7 +28,7 @@ def train_one_epoch(model, data, optimizer, word_counts, debugging=False):
 		loss.backward()
 		optimizer.step()
 
-		if debugging: #and i == 2:
+		if debugging and i == 1:
 			break
 
 	return loss_meter, acc_meter, w_counts
