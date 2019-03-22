@@ -27,7 +27,7 @@ if use_gpu:
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 1
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 2
@@ -37,12 +37,14 @@ K = 3  # number of distractors
 vocab_size = 10
 shapes_dataset = 'balanced'
 vl_loss_weight = 0.0
+bound_weight = 1.0
 
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
 	MAX_SENTENCE_LENGTH = int(sys.argv[2])
 	shapes_dataset = sys.argv[3]
 	vl_loss_weight = float(sys.argv[4])
+	bound_weight = float(sys.argv[5])
 
 # Create vocab if there is not one for the desired size already
 if not does_vocab_exist(vocab_size):
@@ -79,6 +81,7 @@ print('L: {}'.format(MAX_SENTENCE_LENGTH))
 print('Using gpu: {}'.format(use_gpu))
 print('Dataset: {}'.format(shapes_dataset))
 print('Lambda: {}'.format(vl_loss_weight))
+print('Alpha: {}'.format(bound_weight))
 #################################################
 
 current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, MAX_SENTENCE_LENGTH)
@@ -89,7 +92,7 @@ if should_dump and not os.path.exists(current_model_dir):
 
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-	bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, use_gpu)
+	bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -118,7 +121,7 @@ else:
 	eval_accuracy_meters = pickle.load(open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
 
-word_counts = torch.zeros([vocab_size], dtype=torch.int64)
+word_counts = torch.zeros([vocab_size])
 if use_gpu:
 	word_counts = word_counts.cuda()
 
@@ -182,7 +185,7 @@ else:
 	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 	best_model = Model(n_image_features, vocab_size,
 		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-		bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, use_gpu)
+		bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
 	best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 	state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 	best_model.load_state_dict(state)
