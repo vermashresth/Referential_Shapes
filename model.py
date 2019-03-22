@@ -8,7 +8,7 @@ from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length,
+		bound_idx, max_sentence_length, vl_loss_weight, bound_weight,
 		use_gpu, greedy=True):
 		super().__init__()
 
@@ -17,6 +17,8 @@ class Sender(nn.Module):
 		self.vocab_size = vocab_size
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
+		self.vl_loss_weight = vl_loss_weight
+		self.bound_weight = bound_weight
 		self.greedy = greedy
 		self.use_gpu = use_gpu
 
@@ -61,7 +63,7 @@ class Sender(nn.Module):
 		else:
 			return token
 
-	def forward(self, t, word_counts, vl_loss_weight, tau=1.2):
+	def forward(self, t, word_counts, tau=1.2):
 		if self.training:
 			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
@@ -80,6 +82,9 @@ class Sender(nn.Module):
 		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
 
 		ce_loss = nn.CrossEntropyLoss(reduction='none')
+
+		if self.bound_weight != 1.0:
+			word_counts[self.bound_token_idx] *= self.bound_weight
 
 		denominator = word_counts.sum()
 		if denominator > 0:
@@ -119,7 +124,7 @@ class Sender(nn.Module):
 			self._calculate_seq_len(seq_lengths, token, 
 				initial_length, seq_pos=i+1)
 
-			if vl_loss_weight > 0:
+			if self.vl_loss_weight > 0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 
 		return (torch.stack(message, dim=1), seq_lengths, vl_loss)
@@ -172,7 +177,7 @@ class Receiver(nn.Module):
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length, vl_loss_weight, use_gpu):
+		bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
@@ -180,12 +185,12 @@ class Model(nn.Module):
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.vocab_size = vocab_size
-		self.vl_loss_weight = vl_loss_weight#0.3 #lambda
-		# self.bound_weight = 1.0 #alpha
+		self.vl_loss_weight = vl_loss_weight #lambda
+		self.bound_weight = bound_weight #alpha
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
-			bound_idx, max_sentence_length, use_gpu)
+			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, use_gpu)
 
@@ -227,9 +232,9 @@ class Model(nn.Module):
 
 	def _get_word_counts(self, m):
 		if self.training:
-			c = m.sum(dim=1).sum(dim=0).long()
+			c = m.sum(dim=1).sum(dim=0).detach() # ToDo: are we sure about this???? Yeah, we are
 		else:
-			c = torch.zeros([self.vocab_size], dtype=torch.int64)
+			c = torch.zeros([self.vocab_size])
 			if self.use_gpu:
 				c = c.cuda()
 
@@ -237,7 +242,7 @@ class Model(nn.Module):
 				c[w_idx] = (m == w_idx).sum()
 		return c
 
-	def forward(self, target, distractors, word_counts=None):
+	def forward(self, target, distractors, word_counts):
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
@@ -254,7 +259,7 @@ class Model(nn.Module):
 
 
 		# Forward pass on Sender with its target
-		m, seq_lengths, vl_loss = self.sender(target_sender, word_counts, self.vl_loss_weight)
+		m, seq_lengths, vl_loss = self.sender(target_sender, word_counts)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
 		m = self._pad(m, seq_lengths)
