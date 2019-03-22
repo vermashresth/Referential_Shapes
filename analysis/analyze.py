@@ -27,7 +27,7 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir):
 	messages = pickle.load(open(messages_file_name, 'rb'))
 
 	# Grab stats
-	min_len, max_len, avg_len, counter = compute_stats(messages, padding_idx, idx_to_word)
+	min_len, max_len, avg_len, counter = compute_stats(messages, padding_idx, idx_to_word) # counter includes <S> (aka EOS)
 
 	n_utt = len(counter)
 
