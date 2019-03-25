@@ -4,6 +4,8 @@ import random
 from datetime import datetime
 import os
 import sys
+import time
+import math
 
 import torch
 from model import Model
@@ -18,7 +20,7 @@ use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
 should_covert_to_words = not debugging
-should_print_images_metadata = True
+# should_print_images_metadata = True
 
 seed = 42
 torch.manual_seed(seed)
@@ -74,7 +76,7 @@ else:
 
 
 ################# Print info ####################
-print('----------------------------------------')
+print('========================================')
 print('Model id: {}'.format(model_id))
 print('|V|: {}'.format(vocab_size))
 print('L: {}'.format(MAX_SENTENCE_LENGTH))
@@ -106,7 +108,6 @@ if use_gpu:
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
-# Train
 if prev_model_file_name == None:
 	losses_meters = []
 	eval_losses_meters = []
@@ -125,24 +126,41 @@ word_counts = torch.zeros([vocab_size])
 if use_gpu:
 	word_counts = word_counts.cuda()
 
+eval_word_counts = torch.zeros([vocab_size])
+if use_gpu:
+	eval_word_counts = eval_word_counts.cuda()
+
+should_finish = False
+
+# Train
 for epoch in range(EPOCHS):
+	epoch_start_time = time.time()
+
 	e = epoch + starting_epoch
 
 	epoch_loss_meter, epoch_acc_meter, epoch_word_counts = train_one_epoch(
 		model, train_data, optimizer, word_counts, debugging)
 
+	if math.isnan(epoch_loss_meter.avg):
+		print("The train loss in NaN. Stop training")
+		should_finish = True
+		break
+
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 	word_counts += epoch_word_counts
 
-	eval_loss_meter, eval_acc_meter, eval_messages = evaluate(
-		model, valid_data, word_counts, debugging)
+	eval_loss_meter, eval_acc_meter, eval_messages, epoch_eval_word_counts = evaluate(
+		model, valid_data, eval_word_counts, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
+	eval_word_counts += epoch_eval_word_counts
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+
+	print('--(Took {} seconds)'.format(time.time() - epoch_start_time))
 
 	es.step(eval_acc_meter.avg)
 
@@ -166,40 +184,45 @@ for epoch in range(EPOCHS):
 		print("Converged in epoch {}".format(e))
 		break
 
+if not should_finish:
 
-if should_dump:
-	# Dump latest stats
-	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	if should_dump:
+		# Dump latest stats
+		pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 
-# Evaluate best model on test data
+	# Evaluate best model on test data
 
-if debugging:
-	best_model = model
-	best_epoch = e
-else:
-	best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
-	best_model = Model(n_image_features, vocab_size,
-		EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-		bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
-	best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
-	state = torch.load(best_model_name, map_location= lambda storage, location: storage)
-	best_model.load_state_dict(state)
+	if debugging:
+		best_model = model
+		best_epoch = e
+	else:
+		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
+		best_model = Model(n_image_features, vocab_size,
+			EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
+			bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
+		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
+		state = torch.load(best_model_name, map_location= lambda storage, location: storage)
+		best_model.load_state_dict(state)
 
-if use_gpu:
-	best_model = best_model.cuda()
+	if use_gpu:
+		best_model = best_model.cuda()
 
-_, test_acc_meter, test_messages = evaluate(best_model, test_data, word_counts, debugging)
+	test_word_counts = torch.zeros([vocab_size])
+	if use_gpu:
+		test_word_counts = test_word_counts.cuda()
 
-print('Test accuracy: {}'.format(test_acc_meter.avg))
+	_, test_acc_meter, test_messages, _w_counts = evaluate(best_model, test_data, test_word_counts, debugging)
 
-if should_dump:
-	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	print('Test accuracy: {}'.format(test_acc_meter.avg))
 
-	if should_covert_to_words:
-		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))
+	if should_dump:
+		pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+
+		if should_covert_to_words:
+			dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))

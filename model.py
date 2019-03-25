@@ -83,8 +83,8 @@ class Sender(nn.Module):
 
 		ce_loss = nn.CrossEntropyLoss(reduction='none')
 
-		if self.bound_weight != 1.0:
-			word_counts[self.bound_token_idx] *= self.bound_weight
+		# Handle alpha for giving weight to the padding token
+		word_counts[self.bound_token_idx] *= self.bound_weight
 
 		denominator = word_counts.sum()
 		if denominator > 0:
@@ -124,7 +124,7 @@ class Sender(nn.Module):
 			self._calculate_seq_len(seq_lengths, token, 
 				initial_length, seq_pos=i+1)
 
-			if self.vl_loss_weight > 0:
+			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 
 		return (torch.stack(message, dim=1), seq_lengths, vl_loss)
@@ -206,27 +206,6 @@ class Model(nn.Module):
 						m[e_i][i] = m[e_i][i].cuda()
 				else:
 					m[e_i][i] = self.bound_token_idx
-
-		# max_len = m.shape[1] # self.max_sentence_length+1
-		
-		# print(seq_lengths)
-
-		# # rows = torch.tensor()
-
-		# # i = torch.LongTensor([[0],
-		# # 					  [5]])
-		# # v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
-		# # mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
-		
-		# # mask = (m[:,1:] == self.bound_token_idx)
-
-		# mask = m == self.bound_token_idx
-		
-		# indices = mask.nonzero()
-
-		# print(indices)
-		
-		# print(m)
 
 		return m
 
@@ -310,3 +289,27 @@ class Model(nn.Module):
 		loss = loss + self.vl_loss_weight * vl_loss
 
 		return torch.mean(loss), torch.mean(accuracy), m, w_counts
+
+
+
+
+# max_len = m.shape[1] # self.max_sentence_length+1
+		
+		# print(seq_lengths)
+
+		# # rows = torch.tensor()
+
+		# # i = torch.LongTensor([[0],
+		# # 					  [5]])
+		# # v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
+		# # mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
+		
+		# # mask = (m[:,1:] == self.bound_token_idx)
+
+		# mask = m == self.bound_token_idx
+		
+		# indices = mask.nonzero()
+
+		# print(indices)
+		
+		# print(m)
