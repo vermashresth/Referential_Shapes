@@ -83,19 +83,17 @@ class Sender(nn.Module):
 
 		ce_loss = nn.CrossEntropyLoss(reduction='none')
 
-		# Handle alpha for giving weight to the padding token
-		bound_counts = word_counts[self.bound_token_idx]
-		bound_counts *= self.bound_weight
+		print('Initial counts {}'.format(word_counts))
 
-		# word_counts[self.bound_token_idx] *= self.bound_weight # Don't do this because it's passed by reference
+		# Handle alpha by giving weight to the padding token
+		w_counts = word_counts.clone() # Tensor is passed by ref
+		w_counts[self.bound_token_idx] *= self.bound_weight
 
-		assert self.bound_token_idx == len(word_counts) - 1, 'Bound token is not the last word in vocab'
-
-		denominator = word_counts[:-1].sum() + bound_counts
+		denominator = w_counts.sum()
 		if denominator > 0:
-			normalized_word_counts = word_counts / denominator
+			normalized_word_counts = w_counts / denominator
 		else:
-			normalized_word_counts = word_counts
+			normalized_word_counts = w_counts
 
 		vl_loss = 0.0
 		
