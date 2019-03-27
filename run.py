@@ -4,9 +4,8 @@ import torch.nn as nn
 
 
 def discretize_messages(m):
-	print(m)
-	assert False, 'NYI'
-	return m
+	_, res = torch.max(m, dim=-1)
+	return res
 
 def train_one_epoch(model, data, optimizer, word_counts, debugging=False):
 

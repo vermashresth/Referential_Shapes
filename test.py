@@ -180,14 +180,14 @@ for epoch in range(EPOCHS):
 
 			torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
-		# Dump messages
-		#pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb')) # Cannot do this wth ST-GS
-		# Skip for now
-		#pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		# Dump messages every epoch
+		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 	if es.is_converged:
 		print("Converged in epoch {}".format(e))
 		break
+
 
 if is_loss_nan:
 	should_dump = False
@@ -225,12 +225,15 @@ if should_evaluate_best:
 	if use_gpu:
 		test_word_counts = test_word_counts.cuda()
 
-	_, test_acc_meter, test_messages, _w_counts = evaluate(best_model, test_data, test_word_counts, debugging)
+	test_loss_meter, test_acc_meter, test_messages, _w_counts, test_entropy_meter = evaluate(
+		best_model, test_data, test_word_counts, debugging)
 
 	print('Test accuracy: {}'.format(test_acc_meter.avg))
 
 	if should_dump:
+		pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
 		if should_covert_to_words:
