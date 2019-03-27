@@ -117,6 +117,9 @@ if prev_model_file_name == None:
 
 	entropy_meters = []
 	eval_entropy_meters = []
+
+	distinctness_meters = []
+	eval_distinctness_meters = []
 else:
 	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
@@ -142,8 +145,12 @@ for epoch in range(EPOCHS):
 
 	e = epoch + starting_epoch
 
-	epoch_loss_meter, epoch_acc_meter, messages, epoch_w_counts, epoch_entropy_meter = train_one_epoch(
-		model, train_data, optimizer, word_counts, debugging)
+	(epoch_loss_meter, 
+	epoch_acc_meter, 
+	messages, 
+	epoch_w_counts, 
+	epoch_entropy_meter,
+	epoch_distinctness_meter) = train_one_epoch(model, train_data, optimizer, word_counts, debugging)
 
 	if math.isnan(epoch_loss_meter.avg):
 		print("The train loss in NaN. Stop training")
@@ -153,14 +160,20 @@ for epoch in range(EPOCHS):
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
 	entropy_meters.append(epoch_entropy_meter)
+	distinctness_meters.append(epoch_distinctness_meter)
 	word_counts += epoch_w_counts
 
-	eval_loss_meter, eval_acc_meter, eval_messages, _w_counts, eval_entropy_meter = evaluate(
-		model, valid_data, eval_word_counts, debugging)
+	(eval_loss_meter, 
+	eval_acc_meter, 
+	eval_messages, 
+	_w_counts, 
+	eval_entropy_meter,
+	eval_distinctness_meter) = evaluate(model, valid_data, eval_word_counts, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 	eval_entropy_meters.append(eval_entropy_meter)
+	eval_distinctness_meters.append(eval_distinctness_meter)
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
@@ -184,6 +197,10 @@ for epoch in range(EPOCHS):
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
+		if should_covert_to_words:
+			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
+			dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
+
 	if es.is_converged:
 		print("Converged in epoch {}".format(e))
 		break
@@ -201,15 +218,20 @@ if should_dump:
 	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+
 
 
 # Evaluate best model on test data
 if should_evaluate_best:
 
 	if debugging:
+		# Just pick the latest
 		best_model = model
 		best_epoch = e
 	else:
+		# Actually pick the best
 		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 		best_model = Model(n_image_features, vocab_size,
 			EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
@@ -225,8 +247,12 @@ if should_evaluate_best:
 	if use_gpu:
 		test_word_counts = test_word_counts.cuda()
 
-	test_loss_meter, test_acc_meter, test_messages, _w_counts, test_entropy_meter = evaluate(
-		best_model, test_data, test_word_counts, debugging)
+	(test_loss_meter, 
+	test_acc_meter, 
+	test_messages, 
+	_w_counts, 
+	test_entropy_meter,
+	test_distinctness_meter) = evaluate(best_model, test_data, test_word_counts, debugging)
 
 	print('Test accuracy: {}'.format(test_acc_meter.avg))
 
@@ -234,6 +260,7 @@ if should_evaluate_best:
 		pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
 		if should_covert_to_words:

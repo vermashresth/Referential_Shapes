@@ -224,6 +224,10 @@ class Model(nn.Module):
 				c[w_idx] = (m == w_idx).sum()
 		return c
 
+	def _count_unique_messages(self, m):
+		# ToDo: Implement
+		return m.shape[0]
+
 	def forward(self, target, distractors, word_counts):
 		if self.use_gpu:
 			target = target.cuda()
@@ -291,7 +295,12 @@ class Model(nn.Module):
 
 		loss = loss + self.vl_loss_weight * vl_loss
 
-		return torch.mean(loss), torch.mean(accuracy), m, w_counts, torch.mean(entropy)
+		return (torch.mean(loss), 
+			torch.mean(accuracy), 
+			m, 
+			w_counts, 
+			torch.mean(entropy),
+			self._count_unique_messages(m) / self.batch_size)
 
 
 
