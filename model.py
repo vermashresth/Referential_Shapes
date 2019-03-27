@@ -83,8 +83,6 @@ class Sender(nn.Module):
 
 		ce_loss = nn.CrossEntropyLoss(reduction='none')
 
-		print('Initial counts {}'.format(word_counts))
-
 		# Handle alpha by giving weight to the padding token
 		w_counts = word_counts.clone() # Tensor is passed by ref
 		w_counts[self.bound_token_idx] *= self.bound_weight
@@ -96,6 +94,7 @@ class Sender(nn.Module):
 			normalized_word_counts = w_counts
 
 		vl_loss = 0.0
+		entropy = 0.0
 		
 		if self.use_gpu:
 			c = c.cuda()
@@ -107,6 +106,7 @@ class Sender(nn.Module):
 
 			vocab_scores = self.linear_probs(h)
 			p = F.softmax(vocab_scores, dim=1)
+			entropy += Categorical(p).entropy()
 
 			if self.training:	
 				rohc = RelaxedOneHotCategorical(tau, p)
@@ -130,7 +130,7 @@ class Sender(nn.Module):
 			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 
-		return (torch.stack(message, dim=1), seq_lengths, vl_loss)
+		return (torch.stack(message, dim=1), seq_lengths, vl_loss, torch.mean(entropy) / self.max_sentence_length)
 
 
 class Receiver(nn.Module):
@@ -241,7 +241,7 @@ class Model(nn.Module):
 
 
 		# Forward pass on Sender with its target
-		m, seq_lengths, vl_loss = self.sender(target_sender, word_counts)
+		m, seq_lengths, vl_loss, entropy = self.sender(target_sender, word_counts)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
 		m = self._pad(m, seq_lengths)
@@ -291,7 +291,7 @@ class Model(nn.Module):
 
 		loss = loss + self.vl_loss_weight * vl_loss
 
-		return torch.mean(loss), torch.mean(accuracy), m, w_counts
+		return torch.mean(loss), torch.mean(accuracy), m, w_counts, torch.mean(entropy)
 
 
 

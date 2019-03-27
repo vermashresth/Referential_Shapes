@@ -114,6 +114,9 @@ if prev_model_file_name == None:
 
 	accuracy_meters = []
 	eval_accuracy_meters = []
+
+	entropy_meters = []
+	eval_entropy_meters = []
 else:
 	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
@@ -130,7 +133,8 @@ eval_word_counts = torch.zeros([vocab_size])
 if use_gpu:
 	eval_word_counts = eval_word_counts.cuda()
 
-should_finish = False
+is_loss_nan = False
+should_evaluate_best = True
 
 # Train
 for epoch in range(EPOCHS):
@@ -138,24 +142,25 @@ for epoch in range(EPOCHS):
 
 	e = epoch + starting_epoch
 
-	epoch_loss_meter, epoch_acc_meter, epoch_word_counts = train_one_epoch(
+	epoch_loss_meter, epoch_acc_meter, messages, epoch_w_counts, epoch_entropy_meter = train_one_epoch(
 		model, train_data, optimizer, word_counts, debugging)
 
 	if math.isnan(epoch_loss_meter.avg):
 		print("The train loss in NaN. Stop training")
-		should_finish = True
+		is_loss_nan = True
 		break
 
 	losses_meters.append(epoch_loss_meter)
 	accuracy_meters.append(epoch_acc_meter)
-	word_counts += epoch_word_counts
+	entropy_meters.append(epoch_entropy_meter)
+	word_counts += epoch_w_counts
 
-	eval_loss_meter, eval_acc_meter, eval_messages, epoch_eval_word_counts = evaluate(
+	eval_loss_meter, eval_acc_meter, eval_messages, _w_counts, eval_entropy_meter = evaluate(
 		model, valid_data, eval_word_counts, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
-	eval_word_counts += epoch_eval_word_counts
+	eval_entropy_meters.append(eval_entropy_meter)
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
@@ -184,18 +189,22 @@ for epoch in range(EPOCHS):
 		print("Converged in epoch {}".format(e))
 		break
 
-if not should_finish:
+if is_loss_nan:
+	should_dump = False
+	should_evaluate_best = False
 
-	if should_dump:
-		# Dump latest stats
-		pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+if should_dump:
+	# Dump latest stats
+	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
-
-	# Evaluate best model on test data
+# Evaluate best model on test data
+if should_evaluate_best:
 
 	if debugging:
 		best_model = model
