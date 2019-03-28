@@ -225,8 +225,7 @@ class Model(nn.Module):
 		return c
 
 	def _count_unique_messages(self, m):
-		# ToDo: Implement
-		return m.shape[0]
+		return len(torch.unique(m, dim=0))
 
 	def forward(self, target, distractors, word_counts):
 		if self.use_gpu:
