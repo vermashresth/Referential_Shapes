@@ -33,17 +33,17 @@ EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 2
-MAX_SENTENCE_LENGTH = 5#13 if not debugging else 5
 K = 3  # number of distractors
 
 vocab_size = 10
+max_sentence_length = 5
 shapes_dataset = 'balanced'
 vl_loss_weight = 0.0
 bound_weight = 1.0
 
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
-	MAX_SENTENCE_LENGTH = int(sys.argv[2])
+	max_sentence_length = int(sys.argv[2])
 	shapes_dataset = sys.argv[3]
 	vl_loss_weight = float(sys.argv[4])
 	bound_weight = float(sys.argv[5])
@@ -78,15 +78,16 @@ else:
 ################# Print info ####################
 print('========================================')
 print('Model id: {}'.format(model_id))
+print('Seed: {}'.format(seed))
 print('|V|: {}'.format(vocab_size))
-print('L: {}'.format(MAX_SENTENCE_LENGTH))
+print('L: {}'.format(max_sentence_length))
 print('Using gpu: {}'.format(use_gpu))
 print('Dataset: {}'.format(shapes_dataset))
 print('Lambda: {}'.format(vl_loss_weight))
 print('Alpha: {}'.format(bound_weight))
 #################################################
 
-current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, MAX_SENTENCE_LENGTH)
+current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, max_sentence_length)
 
 if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
@@ -94,7 +95,7 @@ if should_dump and not os.path.exists(current_model_dir):
 
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-	bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
+	bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -235,7 +236,7 @@ if should_evaluate_best:
 		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 		best_model = Model(n_image_features, vocab_size,
 			EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-			bound_idx, MAX_SENTENCE_LENGTH, vl_loss_weight, bound_weight, use_gpu)
+			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 		state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 		best_model.load_state_dict(state)
