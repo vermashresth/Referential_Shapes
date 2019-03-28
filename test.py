@@ -20,12 +20,12 @@ use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
 should_covert_to_words = not debugging
-# should_print_images_metadata = True
 
 seed = 42
 torch.manual_seed(seed)
 if use_gpu:
 	torch.cuda.manual_seed(seed)
+random.seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
@@ -33,7 +33,7 @@ EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 2
-MAX_SENTENCE_LENGTH = 13 if not debugging else 5
+MAX_SENTENCE_LENGTH = 5#13 if not debugging else 5
 K = 3  # number of distractors
 
 vocab_size = 10
