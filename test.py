@@ -11,7 +11,7 @@ import torch
 from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping
-from dataloader import load_dictionaries, load_data
+from dataloader import load_dictionaries, load_images #load_data
 from build_shapes_dictionaries import *
 from decode import dump_words
 
@@ -33,7 +33,7 @@ prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 2
+BATCH_SIZE = 128 if not debugging else 4
 K = 3  # number of distractors
 
 vocab_size = 10
@@ -58,7 +58,9 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
 #vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
-n_image_features, train_data, valid_data, test_data = load_data('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+# n_image_features, train_data, valid_data, test_data = load_data('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+n_image_features = 4096 # hard coded?
 
 # Settings
 dumps_dir = './dumps'

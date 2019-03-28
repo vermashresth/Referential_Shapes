@@ -5,6 +5,8 @@ from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from visual_module import CNN
+
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
 		embedding_dim, hidden_size, batch_size, 
@@ -191,6 +193,7 @@ class Model(nn.Module):
 		self.vl_loss_weight = vl_loss_weight #lambda
 		self.bound_weight = bound_weight #alpha
 
+		self.cnn = CNN(use_gpu)
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
 			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
@@ -228,20 +231,28 @@ class Model(nn.Module):
 		# ToDo: Implement
 		return m.shape[0]
 
-	def forward(self, target, distractors, word_counts):
+	def forward(self, target_image, distractors_images, word_counts):
 		if self.use_gpu:
-			target = target.cuda()
-			distractors = [d.cuda() for d in distractors]
+			target_image = target_image.cuda()
+			distractors_images = [d.cuda() for d in distractors_images]
+
 
 		use_different_targets = len(target.shape) == 3
 		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
+		# Extract features
 		if not use_different_targets:
+			target = self.cnn(target_image)
+			distractors = [self.cnn(d) for d in distractors_images]
+
 			target_sender = target
 			target_receiver = target
 		else:
-			target_sender = target[:, 0, :]
-			target_receiver = target[:, 1, :]
+			target_sender = self.cnn(target_image[:,0,:,:,:]) #target[:, 0, :]
+			target_receiver = self.cnn(target_image[:,1,:,:,:]) #target[:, 1, :]
+
+			# Just use the first distractor
+			distractors = [self.cnn(d[:,0,:,:,:]) for d in distractors_images] #d = d[:, 0, :]
 
 
 		# Forward pass on Sender with its target
@@ -266,10 +277,7 @@ class Model(nn.Module):
 
 		distractors_scores = []
 
-		for d in distractors:
-			if use_different_targets:
-				d = d[:, 0, :] # Just use the first distractor
-			
+		for d in distractors:			
 			d = d.view(self.batch_size, 1, -1)
 			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
@@ -301,8 +309,6 @@ class Model(nn.Module):
 			w_counts, 
 			torch.mean(entropy),
 			self._count_unique_messages(m) / self.batch_size)
-
-
 
 
 
