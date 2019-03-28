@@ -15,13 +15,14 @@ def run_epoch(model, data, word_counts, optimizer, debugging):
 	entropy_meter = AverageMeter()
 	distinctness_meter = AverageMeter()
 	messages = []
+	indices = []
 	w_counts = word_counts.clone()
 
 	for d in data:
 		if is_training_mode:
 			optimizer.zero_grad()
 
-		target, distractors = d
+		target, distractors, idxs = d
 
 		loss, acc, m, batch_w_counts, entropy, distinctness = model(target, distractors, w_counts)
 
@@ -30,6 +31,7 @@ def run_epoch(model, data, word_counts, optimizer, debugging):
 		entropy_meter.update(entropy.item())
 		distinctness_meter.update(distinctness)
 		messages.append(discretize_messages(m) if is_training_mode else m)
+		indices.append(idxs)
 		w_counts += batch_w_counts
 
 		if is_training_mode:
@@ -42,6 +44,7 @@ def run_epoch(model, data, word_counts, optimizer, debugging):
 	return (loss_meter, 
 		acc_meter, 
 		torch.cat(messages, 0), 
+		torch.cat(indices, 0), 
 		w_counts, 
 		entropy_meter,
 		distinctness_meter)
