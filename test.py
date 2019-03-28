@@ -20,6 +20,7 @@ use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = not debugging
 should_covert_to_words = not debugging
+should_dump_indices = not debugging
 
 seed = 42
 torch.manual_seed(seed)
@@ -149,6 +150,7 @@ for epoch in range(EPOCHS):
 	(epoch_loss_meter, 
 	epoch_acc_meter, 
 	messages, 
+	indices,
 	epoch_w_counts, 
 	epoch_entropy_meter,
 	epoch_distinctness_meter) = train_one_epoch(model, train_data, optimizer, word_counts, debugging)
@@ -167,6 +169,7 @@ for epoch in range(EPOCHS):
 	(eval_loss_meter, 
 	eval_acc_meter, 
 	eval_messages, 
+	eval_indices,
 	_w_counts, 
 	eval_entropy_meter,
 	eval_distinctness_meter) = evaluate(model, valid_data, eval_word_counts, debugging)
@@ -179,7 +182,7 @@ for epoch in range(EPOCHS):
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
-	print('--(Took {} seconds)'.format(time.time() - epoch_start_time))
+	print('(Took {} seconds)'.format(time.time() - epoch_start_time))
 
 	es.step(eval_acc_meter.avg)
 
@@ -197,6 +200,11 @@ for epoch in range(EPOCHS):
 		# Dump messages every epoch
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+
+		# Dump indices as often as messages
+		if should_dump_indices:
+			pickle.dump(indices, open('{}/{}_{}_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
+			pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
 
 		if should_covert_to_words:
 			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
@@ -251,6 +259,7 @@ if should_evaluate_best:
 	(test_loss_meter, 
 	test_acc_meter, 
 	test_messages, 
+	test_indices,
 	_w_counts, 
 	test_entropy_meter,
 	test_distinctness_meter) = evaluate(best_model, test_data, test_word_counts, debugging)
@@ -263,6 +272,9 @@ if should_evaluate_best:
 		pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+
+		if should_dump_indices:
+			pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))			
 
 		if should_covert_to_words:
 			dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))
