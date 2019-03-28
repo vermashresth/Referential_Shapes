@@ -228,17 +228,15 @@ class Model(nn.Module):
 		return c
 
 	def _count_unique_messages(self, m):
-		# ToDo: Implement
-		return m.shape[0]
+		return torch.unique(m, dim=0)
 
 	def forward(self, target_image, distractors_images, word_counts):
 		if self.use_gpu:
 			target_image = target_image.cuda()
 			distractors_images = [d.cuda() for d in distractors_images]
 
-
-		use_different_targets = len(target.shape) == 3
-		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
+		use_different_targets = len(target_image.shape) == 5
+		assert not use_different_targets or target_image.shape[1] == 2, 'This should only be two targets'
 
 		# Extract features
 		if not use_different_targets:
