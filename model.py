@@ -305,6 +305,7 @@ class Model(nn.Module):
 
 
 
+
 # max_len = m.shape[1] # self.max_sentence_length+1
 		
 		# print(seq_lengths)
