@@ -21,7 +21,7 @@ class ImageDataset():
         for d_idx in distractors_idxs:
             distractors.append(self.features[d_idx])
 
-        return (self.features[target_idx], distractors)
+        return (self.features[target_idx], distractors, indices)
 
     def __len__(self):
         return self.features.shape[0]
