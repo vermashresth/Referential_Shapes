@@ -17,13 +17,12 @@ class ImageDataset():
         self.mean = mean
         self.std = std
 
-        # Might need to uncomment!!!!!!!
-        # self.features = (features - self.mean) / (2 * self.std)
+        # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
         self.features = features
 
         self.transforms = torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(),
-            torchvision.transforms.Resize((250, 250), Image.LINEAR),
+            torchvision.transforms.Resize((128, 128), Image.LINEAR),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(self.mean, self.std)
         ])
@@ -34,13 +33,8 @@ class ImageDataset():
         
         distractors = []
         for d_idx in distractors_idxs:
-            #distractors.append(self.features[d_idx])
-            # Might not be needed
             distractors.append(self.transforms(self.features[d_idx]))
-
-        # return (self.features[target_idx], distractors, indices)
-
-        # Might not be needed
+        
         return (self.transforms(self.features[target_idx]), distractors, indices)
 
     def __len__(self):
