@@ -143,10 +143,10 @@ if use_gpu:
 is_loss_nan = False
 should_evaluate_best = True
 
+train_start_time = time.time()
+
 # Train
 for epoch in range(EPOCHS):
-	epoch_start_time = time.time()
-
 	e = epoch + starting_epoch
 
 	(epoch_loss_meter, 
@@ -184,8 +184,6 @@ for epoch in range(EPOCHS):
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
 
-	print('(Took {} seconds)'.format(time.time() - epoch_start_time))
-
 	es.step(eval_acc_meter.avg)
 
 	if should_dump:
@@ -216,6 +214,8 @@ for epoch in range(EPOCHS):
 		print("Converged in epoch {}".format(e))
 		break
 
+
+print('Training took {} seconds'.format(time.time() - train_start_time))
 
 if is_loss_nan:
 	should_dump = False
