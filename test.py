@@ -230,7 +230,8 @@ print('Training took {} seconds'.format(time.time() - train_start_time))
 
 # Save trained visual features
 if should_train_visual: #and should_dump:
-	save_features(model.cnn, shapes_dataset)
+	save_features(model.cnn, shapes_dataset, folder_id='{}_{}_{}_{}'.format(
+		vocab_size, max_sentence_length, str(vl_loss_weight).replace('.',''), str(bound_weight).replace('.','')))
 
 if is_loss_nan:
 	should_dump = False

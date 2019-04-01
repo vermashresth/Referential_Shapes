@@ -109,7 +109,7 @@ def stitch_files(temp_folder, output_data_folder, file_id):
 	np.save('{}/{}_features.npy'.format(output_data_folder, file_id), features)
 
 
-def save_features(cnn, folder):
+def save_features(cnn, folder, folder_id):
 	batch_size = 128 if use_gpu else 4
 
 	train_dataset = ShapesDataset('shapes/{}/train.large.input.npy'.format(folder))
@@ -120,7 +120,7 @@ def save_features(cnn, folder):
 	val_dataloader = DataLoader(val_dataset, num_workers=8, batch_size=batch_size)
 	test_dataloader = DataLoader(test_dataset, num_workers=8, batch_size=batch_size)
 
-	output_features_folder = 'data/shapes/{}'.format(folder)
+	output_features_folder = 'data/shapes/{}_{}'.format(folder, folder_id)
 	temp_features_folder = 'data/temp'
 
 	if not os.path.exists(output_features_folder):
