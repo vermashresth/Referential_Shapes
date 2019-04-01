@@ -142,6 +142,10 @@ def save_features(cnn, folder):
 	stitch_files(temp_features_folder, output_features_folder, 'test')
 
 	# Remove temp folder
-	# os.rmdir(temp_features_folder)
+	for f in os.listdir(temp_features_folder):
+		os.remove('{}/{}'.format(temp_features_folder, f))
+	os.rmdir(temp_features_folder)
 
+	print()
 	print('Visual features saved in folder {}'.format(output_features_folder))
+	print()
