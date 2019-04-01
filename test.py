@@ -11,9 +11,10 @@ import torch
 from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping
-from dataloader import load_dictionaries, load_pretrained_features, load_raw_images
+from dataloader import load_dictionaries, load_pretrained_features, load_images
 from build_shapes_dictionaries import *
 from decode import dump_words
+from dump_cnn_features import save_features
 
 
 use_gpu = torch.cuda.is_available()
@@ -21,8 +22,6 @@ debugging = not use_gpu
 should_dump = not debugging
 should_covert_to_words = not debugging
 should_dump_indices = not debugging
-
-should_train_visual = False
 
 seed = 42
 torch.manual_seed(seed)
@@ -32,7 +31,7 @@ random.seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 5
+EPOCHS = 1000 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -43,6 +42,7 @@ max_sentence_length = 5
 shapes_dataset = 'balanced'
 vl_loss_weight = 0.0
 bound_weight = 1.0
+should_train_visual = False
 
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
@@ -50,6 +50,7 @@ if len(sys.argv) > 1:
 	shapes_dataset = sys.argv[3]
 	vl_loss_weight = float(sys.argv[4])
 	bound_weight = float(sys.argv[5])
+	should_train_visual = bool(sys.argv[6])
 
 # Create vocab if there is not one for the desired size already
 if not does_vocab_exist(vocab_size):
@@ -61,7 +62,7 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
 
 # Load data
 if should_train_visual:
-	train_data, valid_data, test_data = load_raw_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+	train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
 	n_image_features = 50#4096 # hard coded?
 else:
 	n_image_features, train_data, valid_data, test_data = load_pretrained_features('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
@@ -225,6 +226,10 @@ for epoch in range(EPOCHS):
 
 print()
 print('Training took {} seconds'.format(time.time() - train_start_time))
+
+# Save trained visual features
+if should_train_visual: #and should_dump:
+	save_features(model.cnn, shapes_dataset)
 
 if is_loss_nan:
 	should_dump = False

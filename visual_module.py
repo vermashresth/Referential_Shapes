@@ -14,7 +14,7 @@ import torchvision.models as models
 # 	def forward(self, x):
 
 class CNN(nn.Module):
-	def __init__(self, use_gpu):
+	def __init__(self):
 		super().__init__()
 
 		n_filters = 20

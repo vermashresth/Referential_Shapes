@@ -195,7 +195,7 @@ class Model(nn.Module):
 		self.bound_weight = bound_weight # alpha
 
 		if self.should_train_visual:
-			self.cnn = CNN(use_gpu)
+			self.cnn = CNN()
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
