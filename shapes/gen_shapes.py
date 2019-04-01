@@ -3,6 +3,7 @@
 import numpy as np
 import os
 import pickle
+import torch
 
 from generate_dataset import *
 from image_utils import *
@@ -17,16 +18,19 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 if __name__ == "__main__":
 
-    folder_name = 'different_targets'
+    use_gpu = torch.cuda.is_available()
+    debugging = not use_gpu
+
+    folder_name = 'different_targets_{}_{}'.format(N_CELLS, N_CELLS)
     f_generate_dataset = get_dataset_different_targets
 
     seed = 42
     np.random.seed(seed)
 
     # From Serhii's original experiment
-    train_size = 74504
-    val_size = 8279
-    test_size = 40504
+    train_size = 74504 if not debugging else 1
+    val_size = 8279 if not debugging else 1
+    test_size = 40504 if not debugging else 1
 
 
     train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, seed)

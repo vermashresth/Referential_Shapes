@@ -1,7 +1,7 @@
 import numpy as np
 import cairo
 
-N_CELLS = 3
+N_CELLS = 10
 
 WIDTH = 30
 HEIGHT = 30
