@@ -14,7 +14,7 @@ def load_dictionaries(folder, vocab_size):
 
 	return word_to_idx, idx_to_word, bound_idx
 
-def load_raw_images(folder, batch_size, k):
+def load_images(folder, batch_size, k):
 	train_filename = '{}/train.large.input.npy'.format(folder)
 	valid_filename = '{}/val.input.npy'.format(folder)
 	test_filename = '{}/test.input.npy'.format(folder)
