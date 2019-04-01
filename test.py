@@ -198,14 +198,15 @@ for epoch in range(EPOCHS):
 
 	if should_dump:
 		# Dump models
-		if epoch == 0 or eval_acc_meter.avg > np.max([v.avg for v in eval_accuracy_meters[:-1]]):
-			if epoch > 0:
-				# First delete old model file
-				old_model_files = ['{}/{}'.format(current_model_dir, f) for f in os.listdir(current_model_dir) if f.endswith('_model')]
-				if len(old_model_files) > 0:
-					os.remove(old_model_files[0])
+		# if epoch == 0 or eval_acc_meter.avg > np.max([v.avg for v in eval_accuracy_meters[:-1]]):
+		# 	if epoch > 0:
+		# 		# First delete old model file
+		# 		old_model_files = ['{}/{}'.format(current_model_dir, f) for f in os.listdir(current_model_dir) if f.endswith('_model')]
+		# 		if len(old_model_files) > 0:
+		# 			os.remove(old_model_files[0])
 
-			torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+		# Save model every epoch
+		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
 		# Dump messages every epoch
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
