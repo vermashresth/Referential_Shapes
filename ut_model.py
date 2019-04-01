@@ -10,7 +10,9 @@ class TestModel(unittest.TestCase):
     def setUpClass(self):
         self.model = Model(n_image_features=4096, vocab_size=3,
             embedding_dim=256, hidden_size=512, batch_size=2, 
-            bound_idx=2, max_sentence_length=5, use_gpu=False)
+            bound_idx=2, max_sentence_length=5,
+            vl_loss_weight=0, bound_weight=1, should_train_visual=True, 
+            use_gpu=False)
 
     def test_get_word_counts_train(self):
         self.model.train()
@@ -36,7 +38,7 @@ class TestModel(unittest.TestCase):
 
         res = self.model._get_word_counts(m)
 
-        self.assertTrue(torch.all(torch.eq(res, torch.tensor([3, 4, 5]))))
+        self.assertTrue(torch.all(torch.eq(res, torch.tensor([3.0, 4.0, 5.0]))))
 
     def test_get_word_counts_eval(self):
         self.model.eval()
@@ -48,7 +50,7 @@ class TestModel(unittest.TestCase):
 
         res = self.model._get_word_counts(m)
 
-        self.assertTrue(torch.all(torch.eq(res, torch.tensor([5, 3, 4]))))
+        self.assertTrue(torch.all(torch.eq(res, torch.tensor([5.0, 3.0, 4.0]))))
 
     def test_pad_train(self):
         self.model.train()

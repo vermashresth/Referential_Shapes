@@ -206,15 +206,20 @@ class Model(nn.Module):
 	def _pad(self, m, seq_lengths):
 		max_len = m.shape[1]
 
-		for e_i in range(self.batch_size):
-			for i in range(seq_lengths[e_i], max_len):
-				if self.training:
-					m[e_i][i] = torch.zeros([1, self.vocab_size], dtype=torch.float32)
-					m[e_i][i][self.bound_token_idx] = 1.0
-					if self.use_gpu:
-						m[e_i][i] = m[e_i][i].cuda()
-				else:
-					m[e_i][i] = self.bound_token_idx
+		mask = torch.arange(max_len)
+		if self.use_gpu:
+			mask = mask.cuda()
+
+		mask = mask.expand(
+			len(seq_lengths), max_len
+		) < seq_lengths.unsqueeze(1)
+
+		if self.training:
+			mask = mask.type(dtype=m.dtype)
+			m = m * mask.unsqueeze(2)
+			m[:, :, self.bound_token_idx] += (mask == 0).float()
+		else:
+			m = m.masked_fill_(mask == 0, self.bound_token_idx)
 
 		return m
 
@@ -320,26 +325,3 @@ class Model(nn.Module):
 			w_counts, 
 			torch.mean(entropy),
 			self._count_unique_messages(m) / self.batch_size)
-
-
-
-# max_len = m.shape[1] # self.max_sentence_length+1
-		
-		# print(seq_lengths)
-
-		# # rows = torch.tensor()
-
-		# # i = torch.LongTensor([[0],
-		# # 					  [5]])
-		# # v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
-		# # mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
-		
-		# # mask = (m[:,1:] == self.bound_token_idx)
-
-		# mask = m == self.bound_token_idx
-		
-		# indices = mask.nonzero()
-
-		# print(indices)
-		
-		# print(m)
