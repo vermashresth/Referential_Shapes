@@ -5,7 +5,7 @@ from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from visual_module import CNN, ExpertControllerFiLM
+from visual_module import CNN
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 

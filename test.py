@@ -50,7 +50,7 @@ if len(sys.argv) > 1:
 	shapes_dataset = sys.argv[3]
 	vl_loss_weight = float(sys.argv[4])
 	bound_weight = float(sys.argv[5])
-	should_train_visual = bool(sys.argv[6])
+	should_train_visual = True if 'T' in sys.argv[6] else False
 
 # Create vocab if there is not one for the desired size already
 if not does_vocab_exist(vocab_size):

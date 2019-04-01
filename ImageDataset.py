@@ -2,15 +2,13 @@ import numpy as np
 import torch
 import random
 from torch.utils.data.sampler import Sampler
-
-
-# Might not be needed
 import torchvision.transforms
 from PIL import Image
 
 class ImageDataset():
     def __init__(self, file_name, mean=None, std=None):
         self.features = np.load(file_name)
+        self.use_different_targets = self.features.shape[1] == 2
 
         if mean is None:
             mean = np.mean(self.features, axis=tuple(range(self.features.ndim-1)))#np.mean(features, axis=0)
@@ -33,9 +31,25 @@ class ImageDataset():
         
         distractors = []
         for d_idx in distractors_idxs:
-            distractors.append(self.transforms(self.features[d_idx]))
+            if self.use_different_targets:
+                distractors.append(torch.stack(
+                        (
+                        self.transforms(self.features[d_idx][0]),
+                        self.transforms(self.features[d_idx][1])
+                        ), dim=0)
+                    )
+            else:
+                distractors.append(self.transforms(self.features[d_idx]))
 
-        return (self.transforms(self.features[target_idx]), distractors, indices)
+        if self.use_different_targets:
+            target = torch.stack((
+                    self.transforms(self.features[target_idx][0]),
+                    self.transforms(self.features[target_idx][1])
+                ), dim=0)
+        else:
+            target = self.transforms(self.features[target_idx])
+
+        return (target, distractors, indices)
 
     def __len__(self):
         return self.features.shape[0]
@@ -70,3 +84,27 @@ class ImagesSampler(Sampler):
 
     def __len__(self):
         return self.n
+
+
+class ImageFeaturesDataset():
+    def __init__(self, features, mean=None, std=None):
+        if mean is None:
+            mean = np.mean(features, axis=0)
+            std = np.std(features, axis=0)
+            std[np.nonzero(std == 0.0)] = 1.0  # nan is because of dividing by zero
+        self.mean = mean
+        self.std = std
+        self.features = (features - self.mean) / (2 * self.std)
+
+    def __getitem__(self, indices):        
+        target_idx = indices[0]
+        distractors_idxs = indices[1:]
+        
+        distractors = []
+        for d_idx in distractors_idxs:
+            distractors.append(self.features[d_idx])
+
+        return (self.features[target_idx], distractors, indices)
+
+    def __len__(self):
+        return self.features.shape[0]
