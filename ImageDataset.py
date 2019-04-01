@@ -9,17 +9,17 @@ import torchvision.transforms
 from PIL import Image
 
 class ImageDataset():
-    def __init__(self, features, mean=None, std=None):
+    def __init__(self, file_name, mean=None, std=None):
+        self.features = np.load(file_name)
+
         if mean is None:
-            mean = np.mean(features, axis=tuple(range(features.ndim-1)))#np.mean(features, axis=0)
-            std = np.std(features, axis=tuple(range(features.ndim-1)))#np.std(features, axis=0)
+            mean = np.mean(self.features, axis=tuple(range(self.features.ndim-1)))#np.mean(features, axis=0)
+            std = np.std(self.features, axis=tuple(range(self.features.ndim-1)))#np.std(features, axis=0)
             std[np.nonzero(std == 0.0)] = 1.0  # nan is because of dividing by zero
         self.mean = mean
         self.std = std
-
         # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
-        self.features = features
-
+        
         self.transforms = torchvision.transforms.Compose([
             torchvision.transforms.ToPILImage(),
             torchvision.transforms.Resize((128, 128), Image.LINEAR),
@@ -34,7 +34,7 @@ class ImageDataset():
         distractors = []
         for d_idx in distractors_idxs:
             distractors.append(self.transforms(self.features[d_idx]))
-        
+
         return (self.transforms(self.features[target_idx]), distractors, indices)
 
     def __len__(self):
