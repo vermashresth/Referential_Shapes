@@ -61,6 +61,10 @@ class CNN(nn.Module):
 
 
 
+
+
+
+
 # vgg16
 # class CNN(nn.Module):
 # 	def __init__(self, use_gpu):

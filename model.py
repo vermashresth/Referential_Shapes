@@ -5,7 +5,7 @@ from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
-from visual_module import CNN
+from visual_module import CNN, ExpertControllerFiLM
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
@@ -242,9 +242,9 @@ class Model(nn.Module):
 		use_different_targets = len(target.shape) == nDimensions
 		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
-		# Extract features
 		if not use_different_targets:
 			if self.should_train_visual:
+				# Extract features
 				target = self.cnn(target)
 				distractors = [self.cnn(d) for d in distractors]
 
@@ -252,6 +252,7 @@ class Model(nn.Module):
 			target_receiver = target
 		else:
 			if self.should_train_visual:
+				# Extract features
 				target_sender = self.cnn(target[:, 0, :, :, :]) 
 				target_receiver = self.cnn(target[:, 1, :, :, :])
 
@@ -263,7 +264,7 @@ class Model(nn.Module):
 
 				# Just use the first distractor
 				distractors = [d[:, 0, :] for d in distractors]
-				
+
 
 		# Forward pass on Sender with its target
 		m, seq_lengths, vl_loss, entropy = self.sender(target_sender, word_counts)
