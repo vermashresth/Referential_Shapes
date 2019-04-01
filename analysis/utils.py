@@ -18,7 +18,7 @@ def get_message_length(message, padding_idx):
 	length = 0
 
 	for i in range(len(message)):
-		if message[i] == padding_idx:
+		if i > 0 and message[i] == padding_idx:
 			return length
 		length += 1
 

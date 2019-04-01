@@ -5,10 +5,12 @@ from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
+from visual_module import CNN
+
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length,
+		bound_idx, max_sentence_length, vl_loss_weight, bound_weight,
 		use_gpu, greedy=True):
 		super().__init__()
 
@@ -17,6 +19,8 @@ class Sender(nn.Module):
 		self.vocab_size = vocab_size
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
+		self.vl_loss_weight = vl_loss_weight
+		self.bound_weight = bound_weight
 		self.greedy = greedy
 		self.use_gpu = use_gpu
 
@@ -44,8 +48,24 @@ class Sender(nn.Module):
 		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
 		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
 
-	def forward(self, t, tau=1.2):
+	def _calculate_seq_len(self, seq_lengths, token, initial_length, seq_pos):	
+		if self.training:
+			max_predicted, vocab_index = torch.max(token, dim=1)
+			mask = (vocab_index == self.bound_token_idx) * (max_predicted == 1.0)
+		else:
+			mask = token == self.bound_token_idx
 
+		mask *= seq_lengths == initial_length
+		seq_lengths[mask.nonzero()] = seq_pos + 1 # start symbol always appended
+
+	def _discretize_token(self, token):
+		if self.training:
+			_, idx = torch.max(token, dim=1)
+			return idx
+		else:
+			return token
+
+	def forward(self, t, word_counts, tau=1.2):
 		if self.training:
 			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
@@ -62,16 +82,33 @@ class Sender(nn.Module):
 
 		initial_length = self.max_sentence_length + 1
 		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
+
+		ce_loss = nn.CrossEntropyLoss(reduction='none')
+
+		# Handle alpha by giving weight to the padding token
+		w_counts = word_counts.clone() # Tensor is passed by ref
+		w_counts[self.bound_token_idx] *= self.bound_weight
+
+		denominator = w_counts.sum()
+		if denominator > 0:
+			normalized_word_counts = w_counts / denominator
+		else:
+			normalized_word_counts = w_counts
+
+		vl_loss = 0.0
+		entropy = 0.0
 		
 		if self.use_gpu:
 			c = c.cuda()
 			seq_lengths = seq_lengths.cuda()
 
 		for i in range(self.max_sentence_length): # or sampled <EOS>, but this is batched
-			emb = torch.matmul(message[-1], self.embedding) if message[-1].dtype == torch.float32 else self.embedding[message[-1]]
+			emb = torch.matmul(message[-1], self.embedding) if self.training else self.embedding[message[-1]]
 			h, c = self.lstm_cell(emb, (h, c))
 
-			p = F.softmax(self.linear_probs(h), dim=1)
+			vocab_scores = self.linear_probs(h)
+			p = F.softmax(vocab_scores, dim=1)
+			entropy += Categorical(p).entropy()
 
 			if self.training:	
 				rohc = RelaxedOneHotCategorical(tau, p)
@@ -81,25 +118,21 @@ class Sender(nn.Module):
 				token_hard = torch.zeros_like(token)
 				token_hard.scatter_(-1, torch.argmax(token, dim=-1, keepdim=True), 1.0)
 				token = (token_hard - token).detach() + token
-
-				# Calculate sequence lengths
-				for idx, elem in enumerate(token):
-					if elem[self.bound_token_idx] == 1.0 and seq_lengths[idx] == initial_length:
-						seq_lengths[idx] = i + 1 + 1 # start token always given
 			else:
 				if self.greedy:
 					_, token = torch.max(p, -1)
 				else:
 					token = Categorical(p).sample()
 
-				# Calculate sequence lengths
-				for idx, elem in enumerate(token): 
-					if elem == self.bound_token_idx and seq_lengths[idx] == initial_length:
-						seq_lengths[idx] = i + 1 + 1 # start token always given
-
 			message.append(token)
 
-		return (torch.stack(message, dim=1), seq_lengths)
+			self._calculate_seq_len(seq_lengths, token, 
+				initial_length, seq_pos=i+1)
+
+			if self.vl_loss_weight > 0.0:
+				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
+
+		return (torch.stack(message, dim=1), seq_lengths, vl_loss, torch.mean(entropy) / self.max_sentence_length)
 
 
 class Receiver(nn.Module):
@@ -140,66 +173,106 @@ class Receiver(nn.Module):
 			h = h.cuda()
 			c = c.cuda()		
 
-		emb = torch.matmul(m, self.embedding) if m.dtype == torch.float32 else self.embedding[m]
+		emb = torch.matmul(m, self.embedding) if self.training else self.embedding[m]
 		_, (h, c) = self.lstm(emb, (h[None, ...], c[None, ...]))
 
 		return self.aff_transform(h)
 
 
-def pad(m, seq_lengths, pad_idx, is_training, use_gpu):
-	batch_size = m.shape[0]
-	max_len = m.shape[1]
-	vocab_size = pad_idx + 1
-
-	for e_i in range(batch_size):
-		for i in range(seq_lengths[e_i], max_len):
-			if is_training:
-				m[e_i][i] = torch.zeros([1, vocab_size], dtype=torch.float32)
-				m[e_i][i][pad_idx] = 1.0
-				if use_gpu:
-					m[e_i][i] = m[e_i][i].cuda()
-			else:
-				m[e_i][i] = pad_idx
-
-	return m
-
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length, use_gpu):
+		bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.use_gpu = use_gpu
+		self.should_train_visual = should_train_visual
 		self.bound_token_idx = bound_idx
+		self.max_sentence_length = max_sentence_length
+		self.vocab_size = vocab_size
+		self.vl_loss_weight = vl_loss_weight # lambda
+		self.bound_weight = bound_weight # alpha
+
+		if self.should_train_visual:
+			self.cnn = CNN()
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
-			bound_idx, max_sentence_length, use_gpu)
+			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, use_gpu)		
+			embedding_dim, hidden_size, batch_size, use_gpu)
 
-	def forward(self, target, distractors):
+	def _pad(self, m, seq_lengths):
+		max_len = m.shape[1]
+
+		for e_i in range(self.batch_size):
+			for i in range(seq_lengths[e_i], max_len):
+				if self.training:
+					m[e_i][i] = torch.zeros([1, self.vocab_size], dtype=torch.float32)
+					m[e_i][i][self.bound_token_idx] = 1.0
+					if self.use_gpu:
+						m[e_i][i] = m[e_i][i].cuda()
+				else:
+					m[e_i][i] = self.bound_token_idx
+
+		return m
+
+	def _get_word_counts(self, m):
+		if self.training:
+			c = m.sum(dim=1).sum(dim=0).detach() # ToDo: are we sure about this???? Yeah, we are
+		else:
+			c = torch.zeros([self.vocab_size])
+			if self.use_gpu:
+				c = c.cuda()
+
+			for w_idx in range(self.vocab_size):
+				c[w_idx] = (m == w_idx).sum()
+		return c
+
+	def _count_unique_messages(self, m):
+		return len(torch.unique(m, dim=0))
+
+	def forward(self, target, distractors, word_counts):
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
 
-		use_different_targets = len(target.shape) == 3
+		nDimensions = 5 if self.should_train_visual else 3
+		use_different_targets = len(target.shape) == nDimensions
 		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
 		if not use_different_targets:
+			if self.should_train_visual:
+				# Extract features
+				target = self.cnn(target)
+				distractors = [self.cnn(d) for d in distractors]
+
 			target_sender = target
 			target_receiver = target
 		else:
-			target_sender = target[:, 0, :]
-			target_receiver = target[:, 1, :]
+			if self.should_train_visual:
+				# Extract features
+				target_sender = self.cnn(target[:, 0, :, :, :]) 
+				target_receiver = self.cnn(target[:, 1, :, :, :])
+
+				# Just use the first distractor
+				distractors = [self.cnn(d[:,0,:,:,:]) for d in distractors]
+			else:
+				target_sender = target[:, 0, :]
+				target_receiver = target[:, 1, :]
+
+				# Just use the first distractor
+				distractors = [d[:, 0, :] for d in distractors]
 
 
 		# Forward pass on Sender with its target
-		m, seq_lengths = self.sender(target_sender)
+		m, seq_lengths, vl_loss, entropy = self.sender(target_sender, word_counts)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
-		m = pad(m, seq_lengths, self.bound_token_idx, self.training, self.use_gpu)	
+		m = self._pad(m, seq_lengths)
+
+		w_counts = self._get_word_counts(m)
 
 		# Forward pass on Receiver with the message
 		r_transform = self.receiver(m) # g(.)
@@ -215,10 +288,7 @@ class Model(nn.Module):
 
 		distractors_scores = []
 
-		for d in distractors:
-			if use_different_targets:
-				d = d[:, 0, :] # Just use the first distractor
-			
+		for d in distractors:			
 			d = d.view(self.batch_size, 1, -1)
 			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
@@ -242,6 +312,34 @@ class Model(nn.Module):
 		accuracy = max_idx == 0 # target is the first element
 		accuracy = accuracy.to(dtype=torch.float32)
 
-		loss = seq_lengths.float() * loss		
+		loss = loss + self.vl_loss_weight * vl_loss
 
-		return torch.mean(loss), torch.mean(accuracy), m
+		return (torch.mean(loss), 
+			torch.mean(accuracy), 
+			m, 
+			w_counts, 
+			torch.mean(entropy),
+			self._count_unique_messages(m) / self.batch_size)
+
+
+
+# max_len = m.shape[1] # self.max_sentence_length+1
+		
+		# print(seq_lengths)
+
+		# # rows = torch.tensor()
+
+		# # i = torch.LongTensor([[0],
+		# # 					  [5]])
+		# # v = torch.ones([self.batch_size*max_len - seq_lengths.sum()], dtype=torch.int64)
+		# # mask = torch.sparse.LongTensor(i, v, torch.Size([self.batch_size, max_len])).to_dense()
+		
+		# # mask = (m[:,1:] == self.bound_token_idx)
+
+		# mask = m == self.bound_token_idx
+		
+		# indices = mask.nonzero()
+
+		# print(indices)
+		
+		# print(m)

@@ -1,7 +1,7 @@
 import numpy as np
 import cairo
 
-N_CELLS = 3
+N_CELLS = 10
 
 WIDTH = 30
 HEIGHT = 30
@@ -71,7 +71,7 @@ class Image:
         self.metadata = metadata
 
 
-def get_image(seed, shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
+def get_image(seed, shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
     np.random.seed(seed)
     
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
@@ -87,6 +87,7 @@ def get_image(seed, shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=
 
     shape = shape if shape >= 0 else np.random.randint(N_SHAPES)
     color = color if color >= 0 else np.random.randint(N_COLORS)
+    size = size if size >= 0 else np.random.randint(N_SIZES)
 
     for _ in range(n):
         # Random location
@@ -95,7 +96,7 @@ def get_image(seed, shape=-1, color=-1, n=1, nOtherShapes=0, shouldOthersBeSame=
 
         shapes[r][c] = shape
         colors[r][c] = color
-        sizes[r][c] = np.random.randint(N_SIZES)
+        sizes[r][c] = size
 
         draw(shapes[r][c],
             colors[r][c],

@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import BatchSampler
 
-from ImageDataset import ImageDataset, ImagesSampler
+from ImageDataset import ImageDataset, ImageFeaturesDataset, ImagesSampler
 
 def load_dictionaries(folder, vocab_size):
 	with open("data/{}/dict_{}.pckl".format(folder, vocab_size), "rb") as f:
@@ -14,8 +14,30 @@ def load_dictionaries(folder, vocab_size):
 
 	return word_to_idx, idx_to_word, bound_idx
 
+def load_images(folder, batch_size, k):
+	train_filename = '{}/train.large.input.npy'.format(folder)
+	valid_filename = '{}/val.input.npy'.format(folder)
+	test_filename = '{}/test.input.npy'.format(folder)
 
-def load_data(folder, batch_size, k):
+	train_dataset = ImageDataset(train_filename)
+	valid_dataset = ImageDataset(valid_filename, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
+	test_dataset = ImageDataset(test_filename, mean=train_dataset.mean, std=train_dataset.std)
+
+	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))
+
+	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+
+	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+
+	return train_data, valid_data, test_data
+
+
+
+# This is for loading previously obtained features
+def load_pretrained_features(folder, batch_size, k):
 	train_features = np.load('data/{}/train_features.npy'.format(folder))
 	valid_features = np.load('data/{}/valid_features.npy'.format(folder))
 	test_features = np.load('data/{}/test_features.npy'.format(folder))
@@ -23,9 +45,9 @@ def load_data(folder, batch_size, k):
 
 	n_image_features = valid_features.shape[-1] # 4096
 
-	train_dataset = ImageDataset(train_features)
-	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
-	test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
+	train_dataset = ImageFeaturesDataset(train_features)
+	valid_dataset = ImageFeaturesDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
+	test_dataset = ImageFeaturesDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 
 	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))

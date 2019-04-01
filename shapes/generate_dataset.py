@@ -41,6 +41,7 @@ def get_dataset_unbalanced(size, seed, least_freq_shape=SHAPE_CIRCLE, least_freq
 
 	return images
 
+# Only change location
 def get_dataset_different_targets(size, seed):
 	images = []
 
@@ -49,14 +50,15 @@ def get_dataset_different_targets(size, seed):
 
 		shape = np.random.randint(N_SHAPES)
 		color = np.random.randint(N_COLORS)
-		img1 = get_image(seed+i, shape, color)
+		size = np.random.randint(N_SIZES)
+		img1 = get_image(seed+i, shape, color, size)
 
-		# Different size and/or location
-		img2 = get_image(seed+(i+1)*2, shape, color)
+		# Different location
+		img2 = get_image(seed+(i+1)*2, shape, color, size)
 
 		j = 0
 		while img1.metadata == img2.metadata:
-			img2 = get_image(seed+i*2+j+1, shape, color)
+			img2 = get_image(seed+i*2+j+1, shape, color, size)
 			j += 1
 
 		images.append((img1, img2))
