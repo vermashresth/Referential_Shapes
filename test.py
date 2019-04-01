@@ -11,7 +11,7 @@ import torch
 from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping
-from dataloader import load_dictionaries, load_images #load_data
+from dataloader import load_dictionaries, load_pretrained_features, load_raw_images
 from build_shapes_dictionaries import *
 from decode import dump_words
 
@@ -22,6 +22,8 @@ should_dump = not debugging
 should_covert_to_words = not debugging
 should_dump_indices = not debugging
 
+should_train_visual = False
+
 seed = 42
 torch.manual_seed(seed)
 if use_gpu:
@@ -30,7 +32,7 @@ random.seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
+EPOCHS = 1000 if not debugging else 5
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 4
@@ -58,9 +60,11 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
 #vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
-# n_image_features, train_data, valid_data, test_data = load_data('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-n_image_features = 4096 # hard coded?
+if should_train_visual:
+	train_data, valid_data, test_data = load_raw_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+	n_image_features = 50#4096 # hard coded?
+else:
+	n_image_features, train_data, valid_data, test_data = load_pretrained_features('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
 
 # Settings
 dumps_dir = './dumps'
@@ -82,12 +86,14 @@ else:
 print('========================================')
 print('Model id: {}'.format(model_id))
 print('Seed: {}'.format(seed))
+print('Training visual module: {}'.format(should_train_visual))
 print('|V|: {}'.format(vocab_size))
 print('L: {}'.format(max_sentence_length))
 print('Using gpu: {}'.format(use_gpu))
 print('Dataset: {}'.format(shapes_dataset))
 print('Lambda: {}'.format(vl_loss_weight))
 print('Alpha: {}'.format(bound_weight))
+print()
 #################################################
 
 current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, max_sentence_length)
@@ -98,7 +104,7 @@ if should_dump and not os.path.exists(current_model_dir):
 
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-	bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
+	bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -147,6 +153,8 @@ train_start_time = time.time()
 
 # Train
 for epoch in range(EPOCHS):
+	epoch_start_time = time.time()
+
 	e = epoch + starting_epoch
 
 	(epoch_loss_meter, 
@@ -183,6 +191,7 @@ for epoch in range(EPOCHS):
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+	print('    (Took {} seconds)'.format(time.time() - epoch_start_time))
 
 	es.step(eval_acc_meter.avg)
 
@@ -214,7 +223,7 @@ for epoch in range(EPOCHS):
 		print("Converged in epoch {}".format(e))
 		break
 
-
+print()
 print('Training took {} seconds'.format(time.time() - train_start_time))
 
 if is_loss_nan:
@@ -246,7 +255,7 @@ if should_evaluate_best:
 		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 		best_model = Model(n_image_features, vocab_size,
 			EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
+			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu)
 		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 		state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 		best_model.load_state_dict(state)

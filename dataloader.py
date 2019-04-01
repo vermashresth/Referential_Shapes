@@ -14,18 +14,14 @@ def load_dictionaries(folder, vocab_size):
 
 	return word_to_idx, idx_to_word, bound_idx
 
-def load_images(folder, batch_size, k):
-	train_images = np.load('{}/train.large.input.npy'.format(folder))
-	valid_images = np.load('{}/val.input.npy'.format(folder))
-	test_images = np.load('{}/test.input.npy'.format(folder))
+def load_raw_images(folder, batch_size, k):
+	train_filename = '{}/train.large.input.npy'.format(folder)
+	valid_filename = '{}/val.input.npy'.format(folder)
+	test_filename = '{}/test.input.npy'.format(folder)
 
-	# train_images = np.reshape(train_images, (len(train_images), -1))
-	# valid_images = np.reshape(valid_images, (len(valid_images), -1))
-	# test_images = np.reshape(test_images, (len(test_images), -1))
-
-	train_dataset = ImageDataset(train_images)
-	valid_dataset = ImageDataset(valid_images, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
-	test_dataset = ImageDataset(test_images, mean=train_dataset.mean, std=train_dataset.std)
+	train_dataset = ImageDataset(train_filename)
+	valid_dataset = ImageDataset(valid_filename, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
+	test_dataset = ImageDataset(test_filename, mean=train_dataset.mean, std=train_dataset.std)
 
 	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))
@@ -41,25 +37,25 @@ def load_images(folder, batch_size, k):
 
 
 # This is for loading previously obtained features
-# def load_data(folder, batch_size, k):
-# 	train_features = np.load('data/{}/train_features.npy'.format(folder))
-# 	valid_features = np.load('data/{}/valid_features.npy'.format(folder))
-# 	test_features = np.load('data/{}/test_features.npy'.format(folder))
-# 	# 2d arrays of 4096 features
+def load_pretrained_features(folder, batch_size, k):
+	train_features = np.load('data/{}/train_features.npy'.format(folder))
+	valid_features = np.load('data/{}/valid_features.npy'.format(folder))
+	test_features = np.load('data/{}/test_features.npy'.format(folder))
+	# 2d arrays of 4096 features
 
-# 	n_image_features = valid_features.shape[-1] # 4096
+	n_image_features = valid_features.shape[-1] # 4096
 
-# 	train_dataset = ImageDataset(train_features)
-# 	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
-# 	test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
+	train_dataset = ImageDataset(train_features)
+	valid_dataset = ImageDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
+	test_dataset = ImageDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 
-# 	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
-# 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))
+	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=True))
 
-# 	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
-# 		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
 
-# 	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
-# 		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
+	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=True))
 
-# 	return n_image_features, train_data, valid_data, test_data
+	return n_image_features, train_data, valid_data, test_data

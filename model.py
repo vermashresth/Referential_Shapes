@@ -182,18 +182,21 @@ class Receiver(nn.Module):
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
 		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu):
+		bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu):
 		super().__init__()
 
 		self.batch_size = batch_size
 		self.use_gpu = use_gpu
+		self.should_train_visual = should_train_visual
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.vocab_size = vocab_size
-		self.vl_loss_weight = vl_loss_weight #lambda
-		self.bound_weight = bound_weight #alpha
+		self.vl_loss_weight = vl_loss_weight # lambda
+		self.bound_weight = bound_weight # alpha
 
-		self.cnn = CNN(use_gpu)
+		if self.should_train_visual:
+			self.cnn = CNN(use_gpu)
+
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, batch_size, 
 			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
@@ -230,28 +233,37 @@ class Model(nn.Module):
 	def _count_unique_messages(self, m):
 		return len(torch.unique(m, dim=0))
 
-	def forward(self, target_image, distractors_images, word_counts):
+	def forward(self, target, distractors, word_counts):
 		if self.use_gpu:
-			target_image = target_image.cuda()
-			distractors_images = [d.cuda() for d in distractors_images]
+			target = target.cuda()
+			distractors = [d.cuda() for d in distractors]
 
-		use_different_targets = len(target_image.shape) == 5
-		assert not use_different_targets or target_image.shape[1] == 2, 'This should only be two targets'
+		nDimensions = 5 if self.should_train_visual else 3
+		use_different_targets = len(target.shape) == nDimensions
+		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
 		# Extract features
 		if not use_different_targets:
-			target = self.cnn(target_image)
-			distractors = [self.cnn(d) for d in distractors_images]
+			if self.should_train_visual:
+				target = self.cnn(target)
+				distractors = [self.cnn(d) for d in distractors]
 
 			target_sender = target
 			target_receiver = target
 		else:
-			target_sender = self.cnn(target_image[:,0,:,:,:]) #target[:, 0, :]
-			target_receiver = self.cnn(target_image[:,1,:,:,:]) #target[:, 1, :]
+			if self.should_train_visual:
+				target_sender = self.cnn(target[:, 0, :, :, :]) 
+				target_receiver = self.cnn(target[:, 1, :, :, :])
 
-			# Just use the first distractor
-			distractors = [self.cnn(d[:,0,:,:,:]) for d in distractors_images] #d = d[:, 0, :]
+				# Just use the first distractor
+				distractors = [self.cnn(d[:,0,:,:,:]) for d in distractors]
+			else:
+				target_sender = target[:, 0, :]
+				target_receiver = target[:, 1, :]
 
+				# Just use the first distractor
+				distractors = [d[:, 0, :] for d in distractors]
+				
 
 		# Forward pass on Sender with its target
 		m, seq_lengths, vl_loss, entropy = self.sender(target_sender, word_counts)
