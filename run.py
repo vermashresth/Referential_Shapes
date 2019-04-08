@@ -57,4 +57,3 @@ def train_one_epoch(model, data, optimizer, word_counts, debugging=False):
 def evaluate(model, data, word_counts, debugging=False):
 	model.eval()
 	return run_epoch(model, data, word_counts, None, debugging)
-
