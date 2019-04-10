@@ -3,18 +3,18 @@ import torch.nn as nn
 from torch.nn import functional as F
 from torch.distributions.categorical import Categorical
 from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 
 from visual_module import CNN
+from rsa import representation_similarity_analysis
+from utils import discretize_messages
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
-		embedding_dim, hidden_size, batch_size, 
+		embedding_dim, hidden_size, 
 		bound_idx, max_sentence_length, vl_loss_weight, bound_weight,
 		use_gpu, greedy=True):
 		super().__init__()
 
-		self.batch_size = batch_size
 		self.hidden_size = hidden_size
 		self.vocab_size = vocab_size
 		self.bound_token_idx = bound_idx
@@ -66,22 +66,24 @@ class Sender(nn.Module):
 			return token
 
 	def forward(self, t, word_counts, tau=1.2):
+		batch_size = t.shape[0]
+
 		if self.training:
-			message = [torch.zeros((self.batch_size, self.vocab_size), dtype=torch.float32)]
+			message = [torch.zeros((batch_size, self.vocab_size), dtype=torch.float32)]
 			if self.use_gpu:
 				message[0] = message[0].cuda()
 			message[0][:, self.bound_token_idx] = 1.0
 		else:
-			message = [torch.full((self.batch_size, ), fill_value=self.bound_token_idx, dtype=torch.int64)]
+			message = [torch.full((batch_size, ), fill_value=self.bound_token_idx, dtype=torch.int64)]
 			if self.use_gpu:
 				message[0] = message[0].cuda()
 
 		# h0, c0
 		h = self.aff_transform(t) # batch_size, hidden_size
-		c = torch.zeros([self.batch_size, self.hidden_size])
+		c = torch.zeros([batch_size, self.hidden_size])
 
 		initial_length = self.max_sentence_length + 1
-		seq_lengths = torch.ones([self.batch_size], dtype=torch.int64) * initial_length
+		seq_lengths = torch.ones([batch_size], dtype=torch.int64) * initial_length
 
 		ce_loss = nn.CrossEntropyLoss(reduction='none')
 
@@ -101,6 +103,8 @@ class Sender(nn.Module):
 		if self.use_gpu:
 			c = c.cuda()
 			seq_lengths = seq_lengths.cuda()
+
+		input_embed_rep = []
 
 		for i in range(self.max_sentence_length): # or sampled <EOS>, but this is batched
 			emb = torch.matmul(message[-1], self.embedding) if self.training else self.embedding[message[-1]]
@@ -125,6 +129,7 @@ class Sender(nn.Module):
 					token = Categorical(p).sample()
 
 			message.append(token)
+			input_embed_rep.append(emb)
 
 			self._calculate_seq_len(seq_lengths, token, 
 				initial_length, seq_pos=i+1)
@@ -132,15 +137,18 @@ class Sender(nn.Module):
 			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 
-		return (torch.stack(message, dim=1), seq_lengths, vl_loss, torch.mean(entropy) / self.max_sentence_length)
+		return (torch.stack(message, dim=1), 
+				seq_lengths, 
+				vl_loss, 
+				torch.mean(entropy) / self.max_sentence_length,
+				torch.stack(input_embed_rep, dim=1))
 
 
 class Receiver(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, batch_size, use_gpu):
+		embedding_dim, hidden_size, use_gpu):
 		super().__init__()
 
-		self.batch_size = batch_size
 		self.hidden_size = hidden_size
 		self.use_gpu = use_gpu
 
@@ -165,9 +173,11 @@ class Receiver(nn.Module):
 		nn.init.constant_(self.lstm.bias_hh_l0[self.hidden_size:2 * self.hidden_size], val=1)
 
 	def forward(self, m):
+		batch_size = m.shape[0]
+
 		# h0, c0
-		h = torch.zeros([self.batch_size, self.hidden_size])
-		c = torch.zeros([self.batch_size, self.hidden_size])
+		h = torch.zeros([batch_size, self.hidden_size])
+		c = torch.zeros([batch_size, self.hidden_size])
 
 		if self.use_gpu:
 			h = h.cuda()
@@ -176,32 +186,40 @@ class Receiver(nn.Module):
 		emb = torch.matmul(m, self.embedding) if self.training else self.embedding[m]
 		_, (h, c) = self.lstm(emb, (h[None, ...], c[None, ...]))
 
-		return self.aff_transform(h)
+		return self.aff_transform(h), emb
 
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, batch_size, 
-		bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu):
+		embedding_dim, hidden_size, 
+		bound_idx, max_sentence_length, 
+		vl_loss_weight, bound_weight, 
+		cnn_model_file_name, n_rsa_samples, use_gpu):
 		super().__init__()
 
-		self.batch_size = batch_size
 		self.use_gpu = use_gpu
-		self.should_train_visual = should_train_visual
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
 		self.vocab_size = vocab_size
 		self.vl_loss_weight = vl_loss_weight # lambda
 		self.bound_weight = bound_weight # alpha
+		self.should_train_cnn = cnn_model_file_name is None
+		self.cnn = CNN(n_image_features)
+		self.n_rsa_samples = n_rsa_samples
 
-		if self.should_train_visual:
-			self.cnn = CNN()
+		if not self.should_train_cnn:
+			# Load from dumped model
+			state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
+			cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
+			self.cnn.load_state_dict(cnn_state)
+			print("=CNN state loaded=")
+			print()
 
 		self.sender = Sender(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, 
+			embedding_dim, hidden_size, 
 			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
-			embedding_dim, hidden_size, batch_size, use_gpu)
+			embedding_dim, hidden_size, use_gpu)
 
 	def _pad(self, m, seq_lengths):
 		max_len = m.shape[1]
@@ -238,41 +256,38 @@ class Model(nn.Module):
 	def _count_unique_messages(self, m):
 		return len(torch.unique(m, dim=0))
 
-	def forward(self, target, distractors, word_counts):
+	def forward(self, target, distractors, word_counts, target_onehot_metadata):
+		batch_size = target.shape[0]
+
 		if self.use_gpu:
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
 
-		nDimensions = 5 if self.should_train_visual else 3
-		use_different_targets = len(target.shape) == nDimensions
+		use_different_targets = len(target.shape) == 5
 		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
+		if not self.should_train_cnn:
+			self.cnn.eval()
+			for param in self.cnn.parameters():
+				param.requires_grad = False
+
 		if not use_different_targets:
-			if self.should_train_visual:
-				# Extract features
-				target = self.cnn(target)
-				distractors = [self.cnn(d) for d in distractors]
+			# Extract features
+			target = self.cnn(target)
+			distractors = [self.cnn(d) for d in distractors]
 
 			target_sender = target
 			target_receiver = target
 		else:
-			if self.should_train_visual:
-				# Extract features
-				target_sender = self.cnn(target[:, 0, :, :, :]) 
-				target_receiver = self.cnn(target[:, 1, :, :, :])
+			# Extract features
+			target_sender = self.cnn(target[:, 0, :, :, :]) 
+			target_receiver = self.cnn(target[:, 1, :, :, :])
 
-				# Just use the first distractor
-				distractors = [self.cnn(d[:,0,:,:,:]) for d in distractors]
-			else:
-				target_sender = target[:, 0, :]
-				target_receiver = target[:, 1, :]
-
-				# Just use the first distractor
-				distractors = [d[:, 0, :] for d in distractors]
-
+			# Just use the first distractor
+			distractors = [self.cnn(d[:, 0, :, :, :]) for d in distractors]
 
 		# Forward pass on Sender with its target
-		m, seq_lengths, vl_loss, entropy = self.sender(target_sender, word_counts)
+		m, seq_lengths, vl_loss, entropy, input_embed_rep_sender = self.sender(target_sender, word_counts)
 
 		# Pad with EOS tokens if EOS is predicted before max sentence length
 		m = self._pad(m, seq_lengths)
@@ -280,21 +295,20 @@ class Model(nn.Module):
 		w_counts = self._get_word_counts(m)
 
 		# Forward pass on Receiver with the message
-		r_transform = self.receiver(m) # g(.)
-
+		r_transform, input_embed_rep_receiver = self.receiver(m) # g(.)
 
 		# Loss calculation
 		loss = 0
 
-		target_receiver = target_receiver.view(self.batch_size, 1, -1)
-		r_transform = r_transform.view(self.batch_size, -1, 1)
+		target_receiver = target_receiver.view(batch_size, 1, -1)
+		r_transform = r_transform.view(batch_size, -1, 1)
 
 		target_score = torch.bmm(target_receiver, r_transform).squeeze() #scalar
 
 		distractors_scores = []
 
 		for d in distractors:			
-			d = d.view(self.batch_size, 1, -1)
+			d = d.view(batch_size, 1, -1)
 			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
 			zero_tensor = torch.tensor(0.0)
@@ -304,7 +318,7 @@ class Model(nn.Module):
 			loss += torch.max(zero_tensor, 1.0 - target_score + d_score)
 
 		# Calculate accuracy
-		all_scores = torch.zeros((self.batch_size, 1 + len(distractors)))
+		all_scores = torch.zeros((batch_size, 1 + len(distractors)))
 		all_scores[:,0] = target_score
 
 		for i, score in enumerate(distractors_scores):
@@ -319,9 +333,28 @@ class Model(nn.Module):
 
 		loss = loss + self.vl_loss_weight * vl_loss
 
+		if self.n_rsa_samples > 0:
+			rsa_sr, rsa_si, rsa_ri, topological_sim = representation_similarity_analysis(
+					target_sender.cpu(),
+					target_onehot_metadata,
+					discretize_messages(m).detach().cpu().numpy() if self.training else m.cpu().numpy(),
+					input_embed_rep_sender.detach().cpu(),
+					input_embed_rep_receiver.detach().cpu(),
+					samples=self.n_rsa_samples
+				)
+		else:
+			rsa_sr = 0
+			rsa_si = 0
+			rsa_ri = 0
+			topological_sim = 0
+
 		return (torch.mean(loss), 
 			torch.mean(accuracy), 
 			m, 
 			w_counts, 
 			torch.mean(entropy),
-			self._count_unique_messages(m) / self.batch_size)
+			self._count_unique_messages(m) / batch_size,
+			rsa_sr,
+			rsa_si,
+			rsa_ri,
+			topological_sim)

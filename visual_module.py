@@ -14,7 +14,7 @@ import torchvision.models as models
 # 	def forward(self, x):
 
 class CNN(nn.Module):
-	def __init__(self):
+	def __init__(self, n_out_features):
 		super().__init__()
 
 		n_filters = 20
@@ -37,7 +37,7 @@ class CNN(nn.Module):
 			)
 
 		self.lin = nn.Sequential(
-			nn.Linear(180, 50),
+			nn.Linear(180, n_out_features),
 			nn.ReLU(),
 			)
 

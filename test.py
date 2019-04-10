@@ -11,10 +11,10 @@ import torch
 from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping
-from dataloader import load_dictionaries, load_pretrained_features, load_images
+from dataloader import load_dictionaries, load_images
 from build_shapes_dictionaries import *
+from metadata import does_shapes_onehot_metadata_exist, create_shapes_onehot_metadata, load_shapes_onehot_metadata
 from decode import dump_words
-from dump_cnn_features import save_features
 
 
 use_gpu = torch.cuda.is_available()
@@ -31,19 +31,23 @@ random.seed(seed)
 
 prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
-EPOCHS = 1000 if not debugging else 2
+EPOCHS = 60 if not debugging else 2
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
-BATCH_SIZE = 128 if not debugging else 4
+BATCH_SIZE = 128 if not debugging else 8
 K = 3  # number of distractors
 
+# Default settings
 vocab_size = 10
 max_sentence_length = 5
 shapes_dataset = 'balanced'
 vl_loss_weight = 0.0
 bound_weight = 1.0
 should_train_visual = False
+cnn_model_file_name = None
+rsa_sampling = -1
 
+# Overwrite default settings if given in command line
 if len(sys.argv) > 1:
 	vocab_size = int(sys.argv[1])
 	max_sentence_length = int(sys.argv[2])
@@ -51,6 +55,11 @@ if len(sys.argv) > 1:
 	vl_loss_weight = float(sys.argv[4])
 	bound_weight = float(sys.argv[5])
 	should_train_visual = True if 'T' in sys.argv[6] else False
+	if not should_train_visual:
+		cnn_model_file_name = sys.argv[7] # dumps/0408134521185696/0408134521185696_52_model
+		rsa_sampling = int(sys.argv[8])
+
+assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
 
 # Create vocab if there is not one for the desired size already
 if not does_vocab_exist(vocab_size):
@@ -61,11 +70,16 @@ word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
 #vocab_size = len(word_to_idx) # mscoco: 10000
 
 # Load data
-if should_train_visual:
-	train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-	n_image_features = 50#4096 # hard coded?
-else:
-	n_image_features, train_data, valid_data, test_data = load_pretrained_features('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, n_workers=1 if should_train_visual else 8)
+n_image_features = 2048#4096 # hard coded?
+
+# Create onehot metadata if not created yet
+if not does_shapes_onehot_metadata_exist(shapes_dataset):
+	create_shapes_onehot_metadata(shapes_dataset)
+
+# Load metadata
+train_metadata, valid_metadata, test_metadata = load_shapes_onehot_metadata(shapes_dataset)
+
 
 # Settings
 dumps_dir = './dumps'
@@ -88,12 +102,17 @@ print('========================================')
 print('Model id: {}'.format(model_id))
 print('Seed: {}'.format(seed))
 print('Training visual module: {}'.format(should_train_visual))
+if not should_train_visual:
+	print('Loading pretrained CNN from: {}'.format(cnn_model_file_name))
 print('|V|: {}'.format(vocab_size))
 print('L: {}'.format(max_sentence_length))
 print('Using gpu: {}'.format(use_gpu))
 print('Dataset: {}'.format(shapes_dataset))
 print('Lambda: {}'.format(vl_loss_weight))
 print('Alpha: {}'.format(bound_weight))
+print('N image features: {}'.format(n_image_features))
+if rsa_sampling >= 0:
+	print('N samples for RSA: {}'.format(rsa_sampling))
 print()
 #################################################
 
@@ -104,8 +123,11 @@ if should_dump and not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-	bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu)
+	EMBEDDING_DIM, HIDDEN_SIZE, 
+	bound_idx, max_sentence_length, 
+	vl_loss_weight, bound_weight, 
+	cnn_model_file_name, rsa_sampling,
+	use_gpu)
 
 
 if prev_model_file_name is not None:
@@ -115,8 +137,14 @@ if prev_model_file_name is not None:
 
 if use_gpu:
 	model = model.cuda()
+	
+if should_train_visual:
+	optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
+else:
+	for p in model.cnn.parameters():
+		p.requires_grad = False
+	optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.0001)
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
 if prev_model_file_name == None:
@@ -131,7 +159,20 @@ if prev_model_file_name == None:
 
 	distinctness_meters = []
 	eval_distinctness_meters = []
+
+	rsa_sr_meters = []
+	eval_rsa_sr_meters = []
+
+	rsa_si_meters = []
+	eval_rsa_si_meters = []
+
+	rsa_ri_meters = []
+	eval_rsa_ri_meters = []
+
+	topological_sim_meters = []
+	eval_topological_sim_meters = []
 else:
+	# Out of date
 	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
 
@@ -164,7 +205,11 @@ for epoch in range(EPOCHS):
 	indices,
 	epoch_w_counts, 
 	epoch_entropy_meter,
-	epoch_distinctness_meter) = train_one_epoch(model, train_data, optimizer, word_counts, debugging)
+	epoch_distinctness_meter,
+	epoch_rsa_sr_meter,
+	epoch_rsa_si_meter,
+	epoch_rsa_ri_meter,
+	epoch_topological_sim_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging)
 
 	if math.isnan(epoch_loss_meter.avg):
 		print("The train loss in NaN. Stop training")
@@ -175,6 +220,10 @@ for epoch in range(EPOCHS):
 	accuracy_meters.append(epoch_acc_meter)
 	entropy_meters.append(epoch_entropy_meter)
 	distinctness_meters.append(epoch_distinctness_meter)
+	rsa_sr_meters.append(epoch_rsa_sr_meter)
+	rsa_si_meters.append(epoch_rsa_si_meter)
+	rsa_ri_meters.append(epoch_rsa_ri_meter)
+	topological_sim_meters.append(epoch_topological_sim_meter)
 	word_counts += epoch_w_counts
 
 	(eval_loss_meter, 
@@ -183,15 +232,27 @@ for epoch in range(EPOCHS):
 	eval_indices,
 	_w_counts, 
 	eval_entropy_meter,
-	eval_distinctness_meter) = evaluate(model, valid_data, eval_word_counts, debugging)
+	eval_distinctness_meter,
+	eval_rsa_sr_meter,
+	eval_rsa_si_meter,
+	eval_rsa_ri_meter,
+	eval_topological_sim_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
 	eval_entropy_meters.append(eval_entropy_meter)
 	eval_distinctness_meters.append(eval_distinctness_meter)
+	eval_rsa_sr_meters.append(eval_rsa_sr_meter)
+	eval_rsa_si_meters.append(eval_rsa_si_meter)
+	eval_rsa_ri_meters.append(eval_rsa_ri_meter)
+	eval_topological_sim_meters.append(eval_topological_sim_meter)
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+	print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {}, Topological sim: {}'.format(
+		epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
+	print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}, Eval Topological sim: {}'.format(
+		eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 	print('    (Took {} seconds)'.format(time.time() - epoch_start_time))
 
 	es.step(eval_acc_meter.avg)
@@ -228,11 +289,6 @@ for epoch in range(EPOCHS):
 print()
 print('Training took {} seconds'.format(time.time() - train_start_time))
 
-# Save trained visual features
-if should_train_visual: #and should_dump:
-	save_features(model.cnn, shapes_dataset, folder_id='{}_{}_{}_{}'.format(
-		vocab_size, max_sentence_length, str(vl_loss_weight).replace('.',''), str(bound_weight).replace('.','')))
-
 if is_loss_nan:
 	should_dump = False
 	should_evaluate_best = False
@@ -247,7 +303,14 @@ if should_dump:
 	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-
+	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 # Evaluate best model on test data
@@ -261,11 +324,17 @@ if should_evaluate_best:
 		# Actually pick the best
 		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 		best_model = Model(n_image_features, vocab_size,
-			EMBEDDING_DIM, HIDDEN_SIZE, BATCH_SIZE, 
-			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, should_train_visual, use_gpu)
+			EMBEDDING_DIM, HIDDEN_SIZE, 
+			bound_idx, max_sentence_length, 
+			vl_loss_weight, bound_weight, 
+			cnn_model_file_name, rsa_sampling,
+			use_gpu)
 		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 		state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 		best_model.load_state_dict(state)
+
+		print()
+		print('Best model is in file: {}'.format(best_model_name))
 
 	if use_gpu:
 		best_model = best_model.cuda()
@@ -280,8 +349,13 @@ if should_evaluate_best:
 	test_indices,
 	_w_counts, 
 	test_entropy_meter,
-	test_distinctness_meter) = evaluate(best_model, test_data, test_word_counts, debugging)
+	test_distinctness_meter,
+	test_rsa_sr_meter,
+	test_rsa_si_meter,
+	test_rsa_ri_meter,
+	test_topological_sim_meter) = evaluate(best_model, test_data, test_word_counts, test_metadata, debugging)
 
+	print()
 	print('Test accuracy: {}'.format(test_acc_meter.avg))
 
 	if should_dump:
@@ -289,6 +363,10 @@ if should_evaluate_best:
 		pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_rsa_sr_meter, open('{}/{}_{}_test_rsa_sr_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_rsa_si_meter, open('{}/{}_{}_test_rsa_si_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_rsa_ri_meter, open('{}/{}_{}_test_rsa_ri_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+		pickle.dump(test_topological_sim_meter, open('{}/{}_{}_test_topological_sim_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
 		if should_dump_indices:
