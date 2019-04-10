@@ -20,14 +20,18 @@ def display_image(img):
 	plt.show()
 
 
+assert len(sys.argv) > 1, 'Folder name, train/val/test, index'
 
-folder = 'dummy'#'different_targets'
-npy_file = '{}/train.large.input.npy'.format(folder)
-metadata_file = '{}/train.large.metadata.p'.format(folder)
+folder = sys.argv[1]
+set_name = sys.argv[2]
+if set_name == 'train':
+	str_set_name = 'train.large'
+else:
+	str_set_name = set_name
 
-assert len(sys.argv) > 1, 'Indicate an index!'
-
-index = int(sys.argv[1])
+npy_file = '{}/{}.input.npy'.format(folder, str_set_name)
+metadata_file = '{}/{}.metadata.p'.format(folder, str_set_name)
+index = int(sys.argv[3])
 
 img = np.load(npy_file)[index]
 print(img.shape)

@@ -3,7 +3,6 @@
 import numpy as np
 import os
 import pickle
-import torch
 
 from generate_dataset import *
 from image_utils import *
@@ -18,14 +17,13 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 if __name__ == "__main__":
 
-    use_gpu = torch.cuda.is_available()
-    debugging = not use_gpu
+    debugging = False
 
-    folder_name = 'different_targets_{}_{}'.format(N_CELLS, N_CELLS)
-    f_generate_dataset = get_dataset_different_targets
+    folder_name = 'dummy_different_targets_{}_{}'.format(N_CELLS, N_CELLS)
+    f_generate_dataset = get_dataset_dummy_different_targets#get_dataset_different_targets
 
-    seed = 42
-    np.random.seed(seed)
+    # seed = 42
+    # np.random.seed(seed)
 
     # From Serhii's original experiment
     train_size = 74504 if not debugging else 1
@@ -33,7 +31,7 @@ if __name__ == "__main__":
     test_size = 40504 if not debugging else 1
 
 
-    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, seed)
+    train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset)
 
     has_tuples = type(train_data[0]) is tuple
 
@@ -52,8 +50,8 @@ if __name__ == "__main__":
         "test": test_data
     }
 
-    if not os.path.exists(folder_name):
-        os.mkdir(folder_name)
+    assert not os.path.exists(folder_name), 'Trying to overwrite?'
+    os.mkdir(folder_name)
 
     for set_name, set_data in sets.items():
         if not has_tuples:
@@ -74,3 +72,5 @@ if __name__ == "__main__":
             set_metadata = [(image[0].metadata, image[1].metadata) for image in set_data]
 
         pickle.dump(set_metadata, open('{}/{}.metadata.p'.format(folder_name, set_name), 'wb'))
+
+    print('Saved data set to folder {}'.format(folder_name))

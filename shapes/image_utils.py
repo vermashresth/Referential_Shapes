@@ -1,7 +1,7 @@
 import numpy as np
 import cairo
 
-N_CELLS = 10
+N_CELLS = 3
 
 WIDTH = 30
 HEIGHT = 30
@@ -71,8 +71,8 @@ class Image:
         self.metadata = metadata
 
 
-def get_image(seed, shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
-    np.random.seed(seed)
+def get_image(shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
+    # np.random.seed(seed)
     
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
     PIXEL_SCALE = 2
