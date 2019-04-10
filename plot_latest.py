@@ -15,7 +15,7 @@ file_id = 'losses_meters' if 'loss' in sys.argv[2] else ('accuracy_meters' if 'a
 file_names = ['{}/{}'.format(folder,f) for f in os.listdir(folder) if '{}.p'.format(file_id) in f]
 file_names.sort(key=os.path.getctime)
 
-print(file_names)
+# print(file_names)
 assert len(file_names) == 2 and 'eval' in file_names[-1]
 
 train_file, val_file = file_names
@@ -36,4 +36,6 @@ plt.ylabel('Avg {}'.format(metric))
 plt.title('{} curves'.format(metric))
 #plt.show()
 fig_id = '{}'.format(model_id)
-plt.savefig('{}/{}_curves_{}.png'.format(folder, file_id, fig_id))
+output_file_name = '{}/{}_curves_{}.png'.format(folder, file_id, fig_id)
+plt.savefig(output_file_name)
+print('Plot saved in file {}'.format(output_file_name))
