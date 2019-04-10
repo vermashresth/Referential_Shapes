@@ -52,7 +52,7 @@ class ShapesDataset(data.Dataset):
 	def __len__(self):
 		return self.data.shape[0]
 
-def cnn_fwd(model, x):
+def cnn_fwd(model, x):	
 	y = model(x)
 	y = y.detach()
 
@@ -149,3 +149,5 @@ def save_features(cnn, folder, folder_id):
 	print()
 	print('Visual features saved in folder {}'.format(output_features_folder))
 	print()
+
+	return output_features_folder
