@@ -1,5 +1,10 @@
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from functools import partial
+import torch
+
+def discretize_messages(m):
+    _, res = torch.max(m, dim=-1)
+    return res
 
 class AverageMeter:
     def __init__(self):
