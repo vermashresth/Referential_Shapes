@@ -107,7 +107,7 @@ if not should_train_visual:
 		trained_cnn = trained_cnn.cuda()
 
 	print("=CNN state loaded=")
-	print()
+	
 	# Dump the features to then load them
 	features_folder_name = save_features(trained_cnn, shapes_dataset, model_id)
 
