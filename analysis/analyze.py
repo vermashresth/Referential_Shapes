@@ -6,8 +6,15 @@ import pandas as pd
 
 from utils import *
 
+from enum import Enum
 
-def get_stats(model_id, vocab_size, data_folder, plots_dir, should_plot):
+debugging = True
+
+class Mode(Enum):
+	NORMAL = 0,
+	AVG = 1
+
+def get_test_stats(model_id, vocab_size, data_folder, plots_dir, should_plot=False):
 	_, idx_to_word, padding_idx = load_dictionaries(vocab_size)
 
 	dumps_dir = '../dumps'
@@ -19,7 +26,6 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir, should_plot):
 	acc_meter = pickle.load(open(accuracy_file_name, 'rb'))
 
 	messages_file_name = ['{}/{}'.format(model_dir, f) for f in os.listdir(model_dir) if 'test_messages.p' in f]
-
 	assert len(messages_file_name) == 1
 	messages_file_name = messages_file_name[0]
 
@@ -57,10 +63,19 @@ def get_stats(model_id, vocab_size, data_folder, plots_dir, should_plot):
 
 if len(sys.argv) == 1:
 	# This is going to be broken....
-	all_folders_names = os.listdir('../dumps')
-	inputs = ['{} {}'.format(folder_name, folder_name[folder_name.find('_')+1:folder_name.rfind('_')]) for folder_name in all_folders_names]
+	#all_folders_names = os.listdir('../dumps')
+	#inputs = ['{} {}'.format(folder_name, folder_name[folder_name.find('_')+1:folder_name.rfind('_')]) for folder_name in all_folders_names]
+	print('Usage python analyze.py [data folder] [mode = normal/average] [model_id1 V L lambda alpha] [model_id2 V L lambda alpha] ...')
+	assert False
 else:
-	inputs = sys.argv[1:]
+	data_folder = sys.argv[1]
+	mode = sys.argv[2]
+	inputs = sys.argv[3:]
+
+if 'v' in mode:
+	mode = Mode.AVG
+else:
+	mode = Mode.NORMAL
 
 
 plots_dir = 'plots' # individual
@@ -73,7 +88,6 @@ if not os.path.exists(plots_dir):
 if not os.path.exists(stats_dir):
 	os.mkdir(stats_dir)
 
-data_folder = 'balanced'
 stats_dict = {
 	'id': [],
 	'|V|' : [],
@@ -91,13 +105,14 @@ stats_dict = {
 for inp in inputs:
 	model_id, vocab_size, L, vl_loss_weight, bound_weight = inp.split()
 
-	acc, min_len, max_len, avg_len, n_utt = get_stats(model_id, vocab_size, data_folder, plots_dir, should_plot=False)
-
-	# acc = np.random.random()
-	# min_len = np.random.randint(1,10)
-	# max_len = min_len + np.random.randint(2,5)
-	# avg_len = (min_len + max_len) / 2
-	# n_utt = np.random.randint(1, vocab_size)
+	if not debugging:
+		acc, min_len, max_len, avg_len, n_utt = get_test_stats(model_id, vocab_size, data_folder, plots_dir, should_plot=False)
+	else:
+		acc = np.random.random()
+		min_len = np.random.randint(1,10)
+		max_len = min_len + np.random.randint(2,5)
+		avg_len = (min_len + max_len) / 2
+		n_utt = np.random.randint(1, vocab_size)
 
 	stats_dict['id'].append(model_id)
 	stats_dict['|V|'].append(vocab_size)
@@ -117,6 +132,39 @@ for inp in inputs:
 df = pd.DataFrame(stats_dict)
 df.to_csv('{}/{}_all_stats_{}.csv'.format(stats_dir, analysis_id, data_folder), index=None, header=True)
 
+if mode == Mode.AVG:
+	avg_stats_dict = {k: [] for k in stats_dict.keys() if k != 'id'}
+
+	assert (all(v == stats_dict['|V|'][0] for v in stats_dict['|V|']) 
+		and all(l == stats_dict['L'][0] for l in stats_dict['L'])
+		and all(l == stats_dict['Lambda'][0] for l in stats_dict['Lambda'])
+		and all(a == stats_dict['Alpha'][0] for a in stats_dict['Alpha']))
+
+	avg_stats_dict['|V|'].append(stats_dict['|V|'][0])
+	avg_stats_dict['L'].append(stats_dict['L'][0])
+	avg_stats_dict['Lambda'].append(stats_dict['Lambda'][0])
+	avg_stats_dict['Alpha'].append(stats_dict['Alpha'][0])
+
+	for measure in list(avg_stats_dict.keys())[4:]:
+		avg = sum([stats_dict[measure][idx] for idx in range(len(inputs))]) / len(inputs)
+		avg_stats_dict[measure].append(avg)
+
+	print('=Average for all models=\n|V|: {}, L: {}, Lambda: {}, Alpha: {}, Test acc: {}'.format(
+		avg_stats_dict['|V|'][0], 
+		avg_stats_dict['L'][0], 
+		avg_stats_dict['Alpha'][0], 
+		avg_stats_dict['Lambda'][0], 
+		avg_stats_dict['Test acc'][0]))
+
+	# Dump avg stats
+	df = pd.DataFrame(avg_stats_dict)
+	df.to_csv('{}/{}_avg_stats_{}.csv'.format(stats_dir, analysis_id, data_folder), index=None, header=True)
+
+
+
+
+
+
 
 # unique_VLs = {}
 # for idx, (v, l) in enumerate(zip(stats_dict['|V|'], stats_dict['L'])):
@@ -134,11 +182,6 @@ df.to_csv('{}/{}_all_stats_{}.csv'.format(stats_dir, analysis_id, data_folder), 
 # 	for measure in list(avg_stats_dict.keys())[2:]:
 # 		acc = sum([stats_dict[measure][idx] for idx in idxs]) / len(idxs)
 # 		avg_stats_dict[measure].append(acc)
-
-
-# # Dump avg stats
-# df = pd.DataFrame(avg_stats_dict)
-# df.to_csv('{}/avg_stats_{}.csv'.format(stats_dir, data_folder), index=None, header=True)
 
 
 # plot_acc_per_setting(avg_stats_dict, stats_dir, data_folder)
