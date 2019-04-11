@@ -11,10 +11,12 @@ import torch
 from model import Model
 from run import train_one_epoch, evaluate
 from utils import EarlyStopping
-from dataloader import load_dictionaries, load_images
+from dataloader import load_dictionaries, load_images, load_pretrained_features
 from build_shapes_dictionaries import *
 from metadata import does_shapes_onehot_metadata_exist, create_shapes_onehot_metadata, load_shapes_onehot_metadata
 from decode import dump_words
+from visual_module import CNN
+from dump_cnn_features import save_features
 
 
 use_gpu = torch.cuda.is_available()
@@ -29,7 +31,6 @@ if use_gpu:
 	torch.cuda.manual_seed(seed)
 random.seed(seed)
 
-prev_model_file_name = None#'dumps/01_26_00_16/01_26_00_16_915_model'
 
 EPOCHS = 60 if not debugging else 2
 EMBEDDING_DIM = 256
@@ -46,6 +47,7 @@ bound_weight = 1.0
 should_train_visual = False
 cnn_model_file_name = None
 rsa_sampling = -1
+n_image_features = 2048#4096
 
 # Overwrite default settings if given in command line
 if len(sys.argv) > 1:
@@ -61,40 +63,9 @@ if len(sys.argv) > 1:
 
 assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
 
-# Create vocab if there is not one for the desired size already
-if not does_vocab_exist(vocab_size):
-	build_vocab(vocab_size)
-
-# Load vocab
-word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
-#vocab_size = len(word_to_idx) # mscoco: 10000
-
-# Load data
-train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, n_workers=1 if should_train_visual else 8)
-n_image_features = 2048#4096 # hard coded?
-
-# Create onehot metadata if not created yet
-if not does_shapes_onehot_metadata_exist(shapes_dataset):
-	create_shapes_onehot_metadata(shapes_dataset)
-
-# Load metadata
-train_metadata, valid_metadata, test_metadata = load_shapes_onehot_metadata(shapes_dataset)
-
-
-# Settings
-dumps_dir = './dumps'
-if should_dump and not os.path.exists(dumps_dir):
-	os.mkdir(dumps_dir)
-
-if prev_model_file_name == None:
-	model_id = '{:%m%d%H%M%S%f}'.format(datetime.now())
-	starting_epoch = 0
-else:
-	last_backslash = prev_model_file_name.rfind('/')
-	last_underscore = prev_model_file_name.rfind('_')
-	second_last_underscore = prev_model_file_name[:last_underscore].rfind('_')
-	model_id = prev_model_file_name[last_backslash+1:second_last_underscore]
-	starting_epoch = int(prev_model_file_name[second_last_underscore+1:last_underscore])
+# Get model id using a timestamp
+model_id = '{:%m%d%H%M%S%f}'.format(datetime.now())
+starting_epoch = 0
 
 
 ################# Print info ####################
@@ -116,6 +87,52 @@ if rsa_sampling >= 0:
 print()
 #################################################
 
+
+# Create vocab if there is not one for the desired size already
+if not does_vocab_exist(vocab_size):
+	build_vocab(vocab_size)
+
+# Load vocab
+word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
+
+# Load pretrained CNN if necessary
+if not should_train_visual:
+	# Load CNN from dumped model
+	state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
+	cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
+	trained_cnn = CNN(n_image_features)
+	trained_cnn.load_state_dict(cnn_state)
+
+	if use_gpu:
+		trained_cnn = trained_cnn.cuda()
+
+	print("=CNN state loaded=")
+
+	# Dump the features to then load them
+	features_folder_name = save_features(trained_cnn, shapes_dataset, model_id)
+
+
+# Load data
+if should_train_visual:
+	train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+else:
+	n_pretrained_image_features, train_data, valid_data, test_data = load_pretrained_features(features_folder_name, BATCH_SIZE, K)
+	assert n_pretrained_image_features == n_image_features
+
+# Create onehot metadata if not created yet
+if not does_shapes_onehot_metadata_exist(shapes_dataset):
+	create_shapes_onehot_metadata(shapes_dataset)
+
+# Load metadata
+train_metadata, valid_metadata, test_metadata = load_shapes_onehot_metadata(shapes_dataset)
+
+
+# Settings
+dumps_dir = './dumps'
+if should_dump and not os.path.exists(dumps_dir):
+	os.mkdir(dumps_dir)
+
+
 current_model_dir = '{}/{}_{}_{}'.format(dumps_dir, model_id, vocab_size, max_sentence_length)
 
 if should_dump and not os.path.exists(current_model_dir):
@@ -126,58 +143,39 @@ model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE, 
 	bound_idx, max_sentence_length, 
 	vl_loss_weight, bound_weight, 
-	cnn_model_file_name, rsa_sampling,
+	should_train_visual, rsa_sampling,
 	use_gpu)
-
-
-if prev_model_file_name is not None:
-	state = torch.load(prev_model_file_name, map_location= lambda storage, location: storage)
-	model.load_state_dict(state)
-
 
 if use_gpu:
 	model = model.cuda()
 	
-if should_train_visual:
-	optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-else:
-	for p in model.cnn.parameters():
-		p.requires_grad = False
-	optimizer = torch.optim.Adam(filter(lambda p: p.requires_grad, model.parameters()), lr=0.0001)
-
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 es = EarlyStopping(mode="max", patience=30, threshold=0.005, threshold_mode="rel")
 
-if prev_model_file_name == None:
-	losses_meters = []
-	eval_losses_meters = []
+# Init metric trackers
+losses_meters = []
+eval_losses_meters = []
 
-	accuracy_meters = []
-	eval_accuracy_meters = []
+accuracy_meters = []
+eval_accuracy_meters = []
 
-	entropy_meters = []
-	eval_entropy_meters = []
+entropy_meters = []
+eval_entropy_meters = []
 
-	distinctness_meters = []
-	eval_distinctness_meters = []
+distinctness_meters = []
+eval_distinctness_meters = []
 
-	rsa_sr_meters = []
-	eval_rsa_sr_meters = []
+rsa_sr_meters = []
+eval_rsa_sr_meters = []
 
-	rsa_si_meters = []
-	eval_rsa_si_meters = []
+rsa_si_meters = []
+eval_rsa_si_meters = []
 
-	rsa_ri_meters = []
-	eval_rsa_ri_meters = []
+rsa_ri_meters = []
+eval_rsa_ri_meters = []
 
-	topological_sim_meters = []
-	eval_topological_sim_meters = []
-else:
-	# Out of date
-	losses_meters = pickle.load(open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
-	eval_losses_meters = pickle.load(open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
-
-	accuracy_meters = pickle.load(open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
-	eval_accuracy_meters = pickle.load(open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, starting_epoch), 'rb'))
+topological_sim_meters = []
+eval_topological_sim_meters = []
 
 
 word_counts = torch.zeros([vocab_size])
@@ -258,14 +256,6 @@ for epoch in range(EPOCHS):
 	es.step(eval_acc_meter.avg)
 
 	if should_dump:
-		# Dump models
-		# if epoch == 0 or eval_acc_meter.avg > np.max([v.avg for v in eval_accuracy_meters[:-1]]):
-		# 	if epoch > 0:
-		# 		# First delete old model file
-		# 		old_model_files = ['{}/{}'.format(current_model_dir, f) for f in os.listdir(current_model_dir) if f.endswith('_model')]
-		# 		if len(old_model_files) > 0:
-		# 			os.remove(old_model_files[0])
-
 		# Save model every epoch
 		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
 
@@ -327,7 +317,7 @@ if should_evaluate_best:
 			EMBEDDING_DIM, HIDDEN_SIZE, 
 			bound_idx, max_sentence_length, 
 			vl_loss_weight, bound_weight, 
-			cnn_model_file_name, rsa_sampling,
+			should_train_visual, rsa_sampling,
 			use_gpu)
 		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
 		state = torch.load(best_model_name, map_location= lambda storage, location: storage)

@@ -194,7 +194,7 @@ class Model(nn.Module):
 		embedding_dim, hidden_size, 
 		bound_idx, max_sentence_length, 
 		vl_loss_weight, bound_weight, 
-		cnn_model_file_name, n_rsa_samples, use_gpu):
+		should_train_cnn, n_rsa_samples, use_gpu):
 		super().__init__()
 
 		self.use_gpu = use_gpu
@@ -203,17 +203,11 @@ class Model(nn.Module):
 		self.vocab_size = vocab_size
 		self.vl_loss_weight = vl_loss_weight # lambda
 		self.bound_weight = bound_weight # alpha
-		self.should_train_cnn = cnn_model_file_name is None
-		self.cnn = CNN(n_image_features)
+		self.should_train_cnn = should_train_cnn
 		self.n_rsa_samples = n_rsa_samples
 
-		if not self.should_train_cnn:
-			# Load from dumped model
-			state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
-			cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
-			self.cnn.load_state_dict(cnn_state)
-			print("=CNN state loaded=")
-			print()
+		if self.should_train_cnn:
+			self.cnn = CNN(n_image_features)
 
 		self.sender = Sender(n_image_features, vocab_size,
 			embedding_dim, hidden_size, 
@@ -263,28 +257,35 @@ class Model(nn.Module):
 			target = target.cuda()
 			distractors = [d.cuda() for d in distractors]
 
-		use_different_targets = len(target.shape) == 5
+		n_dim = 5 if self.should_train_cnn else 3
+		use_different_targets = len(target.shape) == n_dim
 		assert not use_different_targets or target.shape[1] == 2, 'This should only be two targets'
 
-		if not self.should_train_cnn:
-			self.cnn.eval()
-			for param in self.cnn.parameters():
-				param.requires_grad = False
+		if self.should_train_cnn:
+			if not use_different_targets:
+				# Extract features
+				target = self.cnn(target)
+				distractors = [self.cnn(d) for d in distractors]
 
-		if not use_different_targets:
-			# Extract features
-			target = self.cnn(target)
-			distractors = [self.cnn(d) for d in distractors]
+				target_sender = target
+				target_receiver = target
+			else:
+				# Extract features
+				target_sender = self.cnn(target[:, 0, :, :, :]) 
+				target_receiver = self.cnn(target[:, 1, :, :, :])
 
-			target_sender = target
-			target_receiver = target
+				# Just use the first distractor
+				distractors = [self.cnn(d[:, 0, :, :, :]) for d in distractors]
 		else:
-			# Extract features
-			target_sender = self.cnn(target[:, 0, :, :, :]) 
-			target_receiver = self.cnn(target[:, 1, :, :, :])
+			if not use_different_targets:
+				target_sender = target
+				target_receiver = target
+			else:
+				target_sender = target[:, 0, :]
+				target_receiver = target[:, 1, :]
 
-			# Just use the first distractor
-			distractors = [self.cnn(d[:, 0, :, :, :]) for d in distractors]
+				# Just use the first distractor
+				distractors = [d[:, 0, :] for d in distractors]
 
 		# Forward pass on Sender with its target
 		m, seq_lengths, vl_loss, entropy, input_embed_rep_sender = self.sender(target_sender, word_counts)
