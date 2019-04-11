@@ -146,7 +146,6 @@ def save_features(cnn, folder, folder_id):
 		os.remove('{}/{}'.format(temp_features_folder, f))
 	os.rmdir(temp_features_folder)
 
-	print()
 	print('Visual features saved in folder {}'.format(output_features_folder))
 	print()
 
