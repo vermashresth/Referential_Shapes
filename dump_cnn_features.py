@@ -121,7 +121,7 @@ def save_features(cnn, folder, folder_id):
 	test_dataloader = DataLoader(test_dataset, num_workers=8, batch_size=batch_size)
 
 	output_features_folder = 'data/shapes/{}_{}'.format(folder, folder_id)
-	temp_features_folder = 'data/temp'
+	temp_features_folder = 'data/temp{}'.format(folder_id)
 
 	if not os.path.exists(output_features_folder):
 		os.mkdir(output_features_folder)
