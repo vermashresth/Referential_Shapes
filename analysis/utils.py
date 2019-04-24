@@ -1,9 +1,27 @@
 from collections import Counter
 import matplotlib.pyplot as plt
 import pickle
+import os
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.ticker import MaxNLocator
 
+def get_model_dir(model_id):
+	dumps_dir = '../dumps'
+	return '{}/{}'.format(dumps_dir, model_id)
+
+def get_pickle_file(model_dir, file_name_id):
+	file_names = ['{}/{}'.format(model_dir, f) for f in os.listdir(model_dir) if file_name_id in f]
+	
+	if len(file_names) > 1:
+		# Make sure we want training dumpsse
+		assert '_test_' not in file_name_id and '_eval_' not in file_name_id
+		file_names = [f for f in file_names if '_test_' not in f and '_eval_' not in f]
+
+	assert len(file_names) == 1
+
+	file_name = file_names[0]
+
+	return pickle.load(open(file_name, 'rb'))
 
 def load_dictionaries(vocab_size):
 	with open("../data/shapes/dict_{}.pckl".format(vocab_size), "rb") as f:

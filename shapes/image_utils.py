@@ -3,8 +3,8 @@ import cairo
 
 N_CELLS = 3
 
-WIDTH = 30
-HEIGHT = 30
+WIDTH = N_CELLS * 10
+HEIGHT = WIDTH
 
 CELL_WIDTH = WIDTH / N_CELLS
 CELL_HEIGHT = HEIGHT / N_CELLS
@@ -70,12 +70,27 @@ class Image:
         self.data = data
         self.metadata = metadata
 
+class Figure:
+    def __init__(self, shape, color, size, r, c):
+        self.shape = shape
+        self.color = color
+        self.size = size
+        self.r = r
+        self.c = c
 
-def get_image(shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSame=False):
-    # np.random.seed(seed)
-    
+    def __repr__(self):
+        return 'Figure at ({},{}) | shape {} | color {} | size {}'.format(
+            self.r,
+            self.c,
+            self.shape,
+            self.color,
+            self.size)
+
+# def get_image(shape=-1, color=-1, size=-1):
+#     return get_image([Figure(shape, color, size, r=-1, c=-1)])
+
+def get_image(figures):
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
-    PIXEL_SCALE = 2
     surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
     ctx = cairo.Context(surf)
     ctx.set_source_rgb(0., 0., 0.)
@@ -85,14 +100,27 @@ def get_image(shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSa
     colors = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
     sizes = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
 
-    shape = shape if shape >= 0 else np.random.randint(N_SHAPES)
-    color = color if color >= 0 else np.random.randint(N_COLORS)
-    size = size if size >= 0 else np.random.randint(N_SIZES)
+    for fig in figures:
+        # Random shape, color, size each time if they are -1
+        shape = fig.shape if fig.shape >= 0 else np.random.randint(N_SHAPES)
+        color = fig.color if fig.color >= 0 else np.random.randint(N_COLORS)
+        size = fig.size if fig.size >= 0 else np.random.randint(N_SIZES)
 
-    for _ in range(n):
-        # Random location
-        r = np.random.randint(N_CELLS)
-        c = np.random.randint(N_CELLS)
+        # Random location if they're -1
+        r = fig.r if fig.r >= 0 else np.random.randint(N_CELLS)
+        c = fig.c if fig.c >= 0 else np.random.randint(N_CELLS)
+
+        if fig.r >= 0 and fig.c >= 0:
+            assert shapes[r][c] is None
+        else:
+            while not shapes[r][c] is None:
+                if fig.r >= 0:
+                    c = np.random.randint(N_CELLS)
+                elif fig.c >= 0:
+                    r = np.random.randint(N_CELLS)
+                else:
+                    c = np.random.randint(N_CELLS)
+                    r = np.random.randint(N_CELLS)
 
         shapes[r][c] = shape
         colors[r][c] = color
@@ -106,5 +134,8 @@ def get_image(shape=-1, color=-1, size=-1, n=1, nOtherShapes=0, shouldOthersBeSa
             ctx)
 
     metadata = {'shapes':shapes, 'colors':colors, 'sizes':sizes}
+
+    flat_shapes = [item for sublist in metadata['shapes'] for item in sublist]
+    assert len(list(filter(lambda x: not x is None, flat_shapes))) == len(figures)
 
     return Image(shapes, colors, sizes, data, metadata)
