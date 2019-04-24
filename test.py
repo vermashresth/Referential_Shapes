@@ -17,19 +17,13 @@ from metadata import does_shapes_onehot_metadata_exist, create_shapes_onehot_met
 from decode import dump_words
 from visual_module import CNN
 from dump_cnn_features import save_features
-
+import argparse
 
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
-should_dump = not debugging
+should_dump = True#not debugging
 should_covert_to_words = not debugging
 should_dump_indices = not debugging
-
-seed = 42
-torch.manual_seed(seed)
-if use_gpu:
-	torch.cuda.manual_seed(seed)
-random.seed(seed)
 
 
 EPOCHS = 60 if not debugging else 2
@@ -37,31 +31,61 @@ EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 8
 K = 3  # number of distractors
+n_image_features = 2048#4096
 
 # Default settings
 vocab_size = 10
 max_sentence_length = 5
-shapes_dataset = 'balanced'
+shapes_dataset = 'balanced_3_3'
 vl_loss_weight = 0.0
 bound_weight = 1.0
 should_train_visual = False
 cnn_model_file_name = None
-rsa_sampling = -1
-n_image_features = 2048#4096
+rsa_sampling = 50
+seed = 42
+use_symbolic_input = False
+
+
+cmd_parser = argparse.ArgumentParser()
+cmd_parser.add_argument('seed', type=int)
+cmd_parser.add_argument('vocab_size', type=int)
+cmd_parser.add_argument('max_sentence_length', type=int)
+cmd_parser.add_argument('shapes_dataset')
+cmd_parser.add_argument('vl_loss_weight', type=float)
+cmd_parser.add_argument('bound_weight', type=float)
+cmd_parser.add_argument('--use_symbolic_input', action='store_true')
+
+excl_group = cmd_parser.add_mutually_exclusive_group()
+excl_group.add_argument('--should_train_visual', action='store_true')
+excl_group.add_argument('--cnn_model_file_name')
+
+cmd_parser.add_argument('rsa_sampling', type=int)
+
+cmd_args = cmd_parser.parse_args()
 
 # Overwrite default settings if given in command line
 if len(sys.argv) > 1:
-	vocab_size = int(sys.argv[1])
-	max_sentence_length = int(sys.argv[2])
-	shapes_dataset = sys.argv[3]
-	vl_loss_weight = float(sys.argv[4])
-	bound_weight = float(sys.argv[5])
-	should_train_visual = True if 'T' in sys.argv[6] else False
-	if not should_train_visual:
-		cnn_model_file_name = sys.argv[7] # dumps/0408134521185696/0408134521185696_52_model
-		rsa_sampling = int(sys.argv[8])
+	seed = cmd_args.seed #int(sys.argv[1])
+	vocab_size = cmd_args.vocab_size #int(sys.argv[2])
+	max_sentence_length = cmd_args.max_sentence_length #int(sys.argv[3])
+	shapes_dataset = cmd_args.shapes_dataset #sys.argv[4]
+	vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
+	bound_weight = cmd_args.bound_weight #float(sys.argv[6])
+	use_symbolic_input = cmd_args.use_symbolic_input
+	should_train_visual = cmd_args.should_train_visual
+	cnn_model_file_name = cmd_args.cnn_model_file_name
+	rsa_sampling = cmd_args.rsa_sampling
 
-assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
+	# if not use_symbolic_input:
+	# 	should_train_visual = True if 'T' in sys.argv[7] else False
+	# 	if not should_train_visual:
+	# 		cnn_model_file_name = sys.argv[8] # dumps/0408134521185696/0408134521185696_52_model
+	# 		rsa_sampling = int(sys.argv[9])
+
+
+
+if not use_symbolic_input:
+	assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
 
 # Get model id using a timestamp
 model_id = '{:%m%d%H%M%S%f}'.format(datetime.now())
@@ -71,17 +95,18 @@ starting_epoch = 0
 ################# Print info ####################
 print('========================================')
 print('Model id: {}'.format(model_id))
-print('Seed: {}'.format(seed))
+print('Seed: {}'.format(seed))	
 print('Training visual module: {}'.format(should_train_visual))
-if not should_train_visual:
+if not should_train_visual and not use_symbolic_input:
 	print('Loading pretrained CNN from: {}'.format(cnn_model_file_name))
 print('|V|: {}'.format(vocab_size))
 print('L: {}'.format(max_sentence_length))
 print('Using gpu: {}'.format(use_gpu))
-print('Dataset: {}'.format(shapes_dataset))
+print('Dataset: {} ({})'.format(shapes_dataset, 'symbolic' if use_symbolic_input else 'pixels'))
 print('Lambda: {}'.format(vl_loss_weight))
 print('Alpha: {}'.format(bound_weight))
-print('N image features: {}'.format(n_image_features))
+if not use_symbolic_input:
+	print('N image features: {}'.format(n_image_features))
 if rsa_sampling >= 0:
 	print('N samples for RSA: {}'.format(rsa_sampling))
 print()
@@ -96,28 +121,28 @@ if not does_vocab_exist(vocab_size):
 word_to_idx, idx_to_word, bound_idx = load_dictionaries('shapes', vocab_size)
 
 # Load pretrained CNN if necessary
-if not should_train_visual:
-	# Load CNN from dumped model
-	state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
-	cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
-	trained_cnn = CNN(n_image_features)
-	trained_cnn.load_state_dict(cnn_state)
+if not should_train_visual and not use_symbolic_input:
+	cnn_model_id = cnn_model_file_name.split('/')[-1]
 
-	if use_gpu:
-		trained_cnn = trained_cnn.cuda()
+	features_folder_name = 'data/shapes/{}_{}'.format(shapes_dataset, cnn_model_id)
 
-	print("=CNN state loaded=")
+	# Check if the features were already extracted with this CNN
+	if not os.path.exists(features_folder_name):
+		# Load CNN from dumped model
+		state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
+		cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
+		trained_cnn = CNN(n_image_features)
+		trained_cnn.load_state_dict(cnn_state)
 
-	# Dump the features to then load them
-	features_folder_name = save_features(trained_cnn, shapes_dataset, model_id)
+		if use_gpu:
+			trained_cnn = trained_cnn.cuda()
 
+		print("=CNN state loaded=")
+		print("Extracting features...")
 
-# Load data
-if should_train_visual:
-	train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-else:
-	n_pretrained_image_features, train_data, valid_data, test_data = load_pretrained_features(features_folder_name, BATCH_SIZE, K)
-	assert n_pretrained_image_features == n_image_features
+		# Dump the features to then load them
+		features_folder_name = save_features(trained_cnn, shapes_dataset, cnn_model_id)
+
 
 # Create onehot metadata if not created yet
 if not does_shapes_onehot_metadata_exist(shapes_dataset):
@@ -125,6 +150,18 @@ if not does_shapes_onehot_metadata_exist(shapes_dataset):
 
 # Load metadata
 train_metadata, valid_metadata, test_metadata = load_shapes_onehot_metadata(shapes_dataset)
+
+
+# Load data
+if not use_symbolic_input:
+	if should_train_visual:
+		train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+	else:
+		n_pretrained_image_features, train_data, valid_data, test_data = load_pretrained_features(features_folder_name, BATCH_SIZE, K)
+		assert n_pretrained_image_features == n_image_features
+else:
+	n_image_features, train_data, valid_data, test_data = load_pretrained_features(
+		'shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, use_symbolic=True)
 
 
 # Settings
@@ -247,10 +284,11 @@ for epoch in range(EPOCHS):
 
 	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
-	print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {}, Topological sim: {}'.format(
-		epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
-	print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}, Eval Topological sim: {}'.format(
-		eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
+	if rsa_sampling > 0:
+		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {}, Topological sim: {}'.format(
+			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
+		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}, Eval Topological sim: {}'.format(
+			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 	print('    (Took {} seconds)'.format(time.time() - epoch_start_time))
 
 	es.step(eval_acc_meter.avg)

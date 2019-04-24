@@ -38,10 +38,6 @@ def representation_similarity_analysis(
     # one hot encode messages by taking padding into account and transforming to one hot
     messages = one_hot(generated_messages)
 
-    # this is needed since some samples might have been dropped during training to maintain batch_size
-    # test_images = test_images[: len(messages)]
-    # test_metadata = test_metadata[: len(messages)]
-
     assert test_metadata.shape[0] == messages.shape[0]
 
     sim_image_features = np.zeros(samples)
