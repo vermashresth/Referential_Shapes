@@ -192,7 +192,8 @@ test_distinctness_meter,
 test_rsa_sr_meter,
 test_rsa_si_meter,
 test_rsa_ri_meter,
-test_topological_sim_meter) = evaluate(model, test_data, test_word_counts, target_test_metadata, debugging)
+test_topological_sim_meter,
+_) = evaluate(model, test_data, test_word_counts, target_test_metadata, debugging)
 
 print()
 print('Test accuracy: {}'.format(test_acc_meter.avg))

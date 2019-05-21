@@ -22,8 +22,8 @@ if __name__ == "__main__":
     if debugging:
         print('=============== Debugging ===================================')
 
-    folder_name = 'different_targets_zero_shot_{}_{}'.format(N_CELLS, N_CELLS)
-    f_generate_dataset = get_dataset_different_targets_zero_shot
+    folder_name = 'uneven_different_targets_row_incomplete_{}_{}'.format(N_CELLS, N_CELLS)
+    f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
     #get_dataset_balanced_zero_shot
     #get_dataset_uneven_incomplete#get_dataset_different_targets_incomplete#get_dataset_uneven_different_targets #get_dataset_balanced_incomplete #get_dataset_uneven #get_dataset_different_targets_three_figures#get_dataset_different_targets
 
@@ -37,11 +37,14 @@ if __name__ == "__main__":
 
     is_uneven = (f_generate_dataset is get_dataset_uneven 
                 or f_generate_dataset is get_dataset_uneven_different_targets
-                or f_generate_dataset is get_dataset_uneven_incomplete)
+                or f_generate_dataset is get_dataset_uneven_incomplete
+                or f_generate_dataset is get_dataset_uneven_different_targets_row
+                or f_generate_dataset is get_dataset_uneven_different_targets_size
+                or f_generate_dataset is get_dataset_uneven_different_targets_row_incomplete)
     if is_uneven:
-        train_data, val_data, test_data, shapes_probs, colors_probs = get_datasets(train_size, val_size, test_size, f_generate_dataset)
+        train_data, val_data, test_data, shapes_probs, colors_probs = get_datasets(train_size, val_size, test_size, f_generate_dataset, is_uneven)
     else:    
-        train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset)
+        train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, is_uneven)
 
     has_tuples = type(train_data[0]) is tuple
 

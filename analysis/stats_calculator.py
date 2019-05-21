@@ -15,6 +15,7 @@ def get_test_metrics(model_id):
 	rsa_si_meter = get_pickle_file(model_dir, 'test_rsa_si_meter.p')
 	rsa_ri_meter = get_pickle_file(model_dir, 'test_rsa_ri_meter.p')
 	topological_sim_meter = get_pickle_file(model_dir, 'test_topological_sim_meter.p')
+	lang_entropy_meter = get_pickle_file(model_dir, 'test_language_entropy_meter.p')
 
 	return (acc_meter.avg,
 			entropy_meter.avg,
@@ -22,10 +23,11 @@ def get_test_metrics(model_id):
 			rsa_sr_meter.avg,
 			rsa_si_meter.avg,
 			rsa_ri_meter.avg,
-			topological_sim_meter.avg)
+			topological_sim_meter.avg,
+			lang_entropy_meter.avg)
 
 def get_test_messages_stats(model_id, vocab_size, data_folder, plots_dir, should_plot=False):
-	_, idx_to_word, padding_idx = load_dictionaries(vocab_size)
+	_, idx_to_word, padding_idx = load_dictionaries('shapes' if '_' in data_folder else 'mscoco', vocab_size)
 
 	model_dir = get_model_dir(model_id)
 
@@ -58,164 +60,219 @@ def get_test_messages_stats(model_id, vocab_size, data_folder, plots_dir, should
 			avg_len,
 			n_utt)
 
-def get_training_meters(model_id):
+def get_training_meters(model_id, debugging=False):
 	model_dir = get_model_dir(model_id)
 
-	losses_meters = get_pickle_file(model_dir, 'losses_meters.p')
-	acc_meters = get_pickle_file(model_dir, 'accuracy_meters.p')
-	entropy_meters = get_pickle_file(model_dir, 'entropy_meters.p')
-	distinctness_meters = get_pickle_file(model_dir, 'distinctness_meters.p')
+	if not debugging:
+		# rsa_srs_list = get_pickle_file(model_dir, 'rsa_srs_list.p')
+		# acc_meters = get_pickle_file(model_dir, 'accuracy_meters.p')
+		# entropy_meters = get_pickle_file(model_dir, 'entropy_meters.p')
+		# distinctness_meters = get_pickle_file(model_dir, 'distinctness_meters.p')
+		rsa_sr_meters = get_pickle_file(model_dir, 'rsa_sr_meters.p')
+		rsa_si_meters = get_pickle_file(model_dir, 'rsa_si_meters.p')
+		rsa_ri_meters = get_pickle_file(model_dir, 'rsa_ri_meters.p')
+		topological_sim_meters = get_pickle_file(model_dir, 'topological_sim_meters.p')
+		# language_entropy_meters = get_pickle_file(model_dir, 'language_entropy_meters.p')
+	else:
+		# rsa_srs_list = [AverageMeter() for _ in range(40)]
+		# acc_meters = [AverageMeter() for _ in range(40)]
+		# entropy_meters = [AverageMeter() for _ in range(40)]
+		# distinctness_meters = [AverageMeter() for _ in range(40)]
+		rsa_sr_meters = [AverageMeter() for _ in range(40)]
+		rsa_si_meters = [AverageMeter() for _ in range(40)]
+		rsa_ri_meters = [AverageMeter() for _ in range(40)]
+		topological_sim_meters = [AverageMeter() for _ in range(40)]
+		# language_entropy_meters = [AverageMeter() for _ in range(40)]
+
+		for meter_list in [rsa_srs_list, acc_meters, distinctness_meters, rsa_sr_meters, rsa_si_meters, rsa_ri_meters, topological_sim_meters]:
+			for m in meter_list:
+				m.update(np.random.random())
+
+		# for meter_list in [entropy_meters, language_entropy_meters]:
+		# 	for m in meter_list:
+		# 		m.update(np.random.random() + (1 if np.random.random() < 0.5 else 2))
+
+	return (#rsa_srs_list,
+			#acc_meters, 
+			#entropy_meters,
+			#distinctness_meters,
+			rsa_sr_meters,
+			rsa_si_meters,
+			rsa_ri_meters,
+			topological_sim_meters,
+			#language_entropy_meters
+			)
+
+def get_training_values(model_id, per_epoch, debugging=False):
+	model_dir = get_model_dir(model_id)
+
 	rsa_sr_meters = get_pickle_file(model_dir, 'rsa_sr_meters.p')
 	rsa_si_meters = get_pickle_file(model_dir, 'rsa_si_meters.p')
 	rsa_ri_meters = get_pickle_file(model_dir, 'rsa_ri_meters.p')
 	topological_sim_meters = get_pickle_file(model_dir, 'topological_sim_meters.p')
 
-	return (losses_meters,
-			acc_meters, 
-			entropy_meters,
-			distinctness_meters,
-			rsa_sr_meters,
-			rsa_si_meters,
-			rsa_ri_meters,
-			topological_sim_meters)
+	if per_epoch:
+		return ([m.avg for m in rsa_sr_meters],
+				[m.avg for m in rsa_si_meters],
+				[m.avg for m in rsa_ri_meters],
+				[m.avg for m in topological_sim_meters])
+	else:
+		all_datapoints = []
+		for meters_list in [rsa_sr_meters, rsa_si_meters, rsa_ri_meters, topological_sim_meters]:
+			datapoints = []
+			for m in meters_list:
+				datapoints.extend(m.all_values)
+			all_datapoints.append(datapoints)
 
-def plot_training_meters_curves(model_ids, analysis_id, plots_dir):
+		return (all_datapoints[0],
+				all_datapoints[1],
+				all_datapoints[2],
+				all_datapoints[3])
+
+def plot_rsa_topo_curves(model_dict, analysis_id, plots_dir, debugging=False):
 	output_dir = '{}/{}'.format(plots_dir, analysis_id)
 
 	if not os.path.exists(output_dir):
 		os.mkdir(output_dir)
 
-	for i,model_id in enumerate(model_ids):
-		(losses_meters,
-		acc_meters, 
-		entropy_meters,
-		distinctness_meters,
-		rsa_sr_meters,
-		rsa_si_meters,
-		rsa_ri_meters,
-		topological_sim_meters) = get_training_meters(model_id)
+	metrics_per_dataset = {k:{'rsa_sr':None, 'rsa_si':None, 'rsa_ri':None, 'topo_sim':None} for k in set(model_dict['dataset'])}
 
-		assert (len(losses_meters) == len(acc_meters) and
-				len(losses_meters) == len(entropy_meters) and
-				len(losses_meters) == len(distinctness_meters) and
-				len(losses_meters) == len(rsa_sr_meters) and
-				len(losses_meters) == len(rsa_si_meters) and
-				len(losses_meters) == len(topological_sim_meters))
+	for i, model_id in enumerate(model_dict['id']):
+		dataset_id = model_dict['dataset'][i]
 
-		if i == 0:
-			losses = np.array([m.avg for m in losses_meters])
-			accuracies = np.array([m.avg for m in acc_meters])
-			entropies = np.array([m.avg for m in entropy_meters])
-			distincts = np.array([m.avg for m in distinctness_meters])
-			rsa_srs = np.array([m.avg for m in rsa_sr_meters])
-			rsa_sis = np.array([m.avg for m in rsa_si_meters])
-			rsa_ris = np.array([m.avg for m in rsa_ri_meters])
-			topo_similarities = np.array([m.avg for m in topological_sim_meters])
+		(rsa_srs_list,
+		rsa_sis_list,
+		rsa_ris_list,
+		topological_sims_list) = get_training_values(model_id, per_epoch=True, debugging=debugging)
+
+		for l in [rsa_sis_list, rsa_ris_list, topological_sims_list]:
+			assert len(rsa_srs_list) == len(l)
+
+		if metrics_per_dataset[dataset_id]['rsa_sr'] is None:
+			metrics_per_dataset[dataset_id]['rsa_sr'] = np.array(rsa_srs_list)
+			metrics_per_dataset[dataset_id]['rsa_si'] = np.array(rsa_sis_list)
+			metrics_per_dataset[dataset_id]['rsa_ri'] = np.array(rsa_ris_list)
+			metrics_per_dataset[dataset_id]['topo_sim'] = np.array(topological_sims_list)
 		else:
-			losses_len = losses.shape[-1]
+			length = metrics_per_dataset[dataset_id]['rsa_sr'].shape[-1]
 
-			if len(losses_meters) < losses_len:
-				if losses.ndim == 1:
-					losses = losses[:len(losses_meters)]
-					accuracies = accuracies[:len(losses_meters)]
-					entropies = entropies[:len(losses_meters)]
-					distincts = distincts[:len(losses_meters)]
-					rsa_srs = rsa_srs[:len(losses_meters)]
-					rsa_sis = rsa_sis[:len(losses_meters)]
-					rsa_ris = rsa_ris[:len(losses_meters)]
-					topo_similarities = topo_similarities[:len(losses_meters)]
+			if len(rsa_srs_list) < length:
+				if metrics_per_dataset[dataset_id]['rsa_sr'].ndim == 1:
+					metrics_per_dataset[dataset_id]['rsa_sr'] = metrics_per_dataset[dataset_id]['rsa_sr'][:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['rsa_si'] = metrics_per_dataset[dataset_id]['rsa_si'][:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['rsa_ri'] = metrics_per_dataset[dataset_id]['rsa_ri'][:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['topo_sim'] = metrics_per_dataset[dataset_id]['topo_sim'][:len(rsa_srs_list)]
 				else:
-					assert losses.ndim == 2
-					losses = losses[:, 0:len(losses_meters)]
-					accuracies = accuracies[:, 0:len(losses_meters)]
-					entropies = entropies[:, 0:len(losses_meters)]
-					distincts = distincts[:, 0:len(losses_meters)]
-					rsa_srs = rsa_srs[:, 0:len(losses_meters)]
-					rsa_sis = rsa_sis[:, 0:len(losses_meters)]
-					rsa_ris = rsa_ris[:, 0:len(losses_meters)]
-					topo_similarities = topo_similarities[:, 0:len(losses_meters)]
-			else:			
-				losses_meters = losses_meters[:losses_len]
-				acc_meters = acc_meters[:losses_len]
-				entropy_meters = entropy_meters[:losses_len]
-				distinctness_meters = distinctness_meters[:losses_len]
-				rsa_sr_meters = rsa_sr_meters[:losses_len]
-				rsa_si_meters = rsa_si_meters[:losses_len]
-				rsa_ri_meters = rsa_ri_meters[:losses_len]
-				topological_sim_meters = topological_sim_meters[:losses_len]
+					assert metrics_per_dataset[dataset_id]['rsa_sr'].ndim == 2
+					metrics_per_dataset[dataset_id]['rsa_sr'] = metrics_per_dataset[dataset_id]['rsa_sr'][:, 0:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['rsa_si'] = metrics_per_dataset[dataset_id]['rsa_si'][:, 0:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['rsa_ri'] = metrics_per_dataset[dataset_id]['rsa_ri'][:, 0:len(rsa_srs_list)]
+					metrics_per_dataset[dataset_id]['topo_sim'] = metrics_per_dataset[dataset_id]['topo_sim'][:, 0:len(rsa_srs_list)]
+			else:
+				rsa_srs_list = rsa_srs_list[:length]
+				rsa_sis_list = rsa_sis_list[:length]
+				rsa_ris_list = rsa_ris_list[:length]
+				topological_sims_list = topological_sims_list[:length]
 
-			losses = np.vstack((losses, np.array([m.avg for m in losses_meters])))
-			accuracies = np.vstack((accuracies, np.array([m.avg for m in acc_meters])))
-			entropies = np.vstack((entropies, np.array([m.avg for m in entropy_meters])))
-			distincts = np.vstack((distincts, np.array([m.avg for m in distinctness_meters])))
-			rsa_srs = np.vstack((rsa_srs, np.array([m.avg for m in rsa_sr_meters])))
-			rsa_sis = np.vstack((rsa_sis, np.array([m.avg for m in rsa_si_meters])))
-			rsa_ris = np.vstack((rsa_ris, np.array([m.avg for m in rsa_ri_meters])))
-			topo_similarities = np.vstack((topo_similarities, np.array([m.avg for m in topological_sim_meters])))
+			metrics_per_dataset[dataset_id]['rsa_sr'] = np.vstack((metrics_per_dataset[dataset_id]['rsa_sr'], np.array(rsa_srs_list)))
+			metrics_per_dataset[dataset_id]['rsa_si'] = np.vstack((metrics_per_dataset[dataset_id]['rsa_si'], np.array(rsa_sis_list)))
+			metrics_per_dataset[dataset_id]['rsa_ri'] = np.vstack((metrics_per_dataset[dataset_id]['rsa_ri'], np.array(rsa_ris_list)))
+			metrics_per_dataset[dataset_id]['topo_sim'] = np.vstack((metrics_per_dataset[dataset_id]['topo_sim'], np.array(topological_sims_list)))
 
-	if losses.ndim > 1:
-		assert (losses.shape[0] == len(model_ids) 
-				and losses.shape == accuracies.shape 
-				and losses.shape == entropies.shape
-				and losses.shape == distincts.shape
-				and losses.shape == rsa_srs.shape
-				and losses.shape == rsa_sis.shape
-				and losses.shape == rsa_ris.shape
-				and losses.shape == topo_similarities.shape)
+	metrics_avg_per_dataset = {}
 
-	if len(model_ids) > 1:
-		losses_avg = np.mean(losses, axis=0)
-		accuracies_avg = np.mean(accuracies, axis=0)
-		entropies_avg = np.mean(entropies, axis=0)
-		perplexities_avg = 2 ** entropies_avg
-		distincts_avg = np.mean(distincts, axis=0)
-		rsa_srs_avg = np.mean(rsa_srs, axis=0)
-		rsa_sis_avg = np.mean(rsa_sis, axis=0)
-		rsa_ris_avg = np.mean(rsa_ris, axis=0)
-		topo_similarities_avg = np.mean(topo_similarities, axis=0)
-	else:
-		losses_avg = losses
-		accuracies_avg = accuracies
-		entropies_avg = entropies
-		perplexities_avg = 2 ** entropies_avg
-		distincts_avg = distincts
-		rsa_srs_avg = rsa_srs
-		rsa_sis_avg = rsa_sis
-		rsa_ris_avg = rsa_ris
-		topo_similarities_avg = topo_similarities
+	for dataset, dictionary in metrics_per_dataset.items():
+		n_models = model_dict['dataset'].count(dataset)
+
+		if dictionary['rsa_sr'].ndim > 1:
+			assert (dictionary['rsa_sr'].shape[0] == n_models
+					and dictionary['rsa_sr'].shape == dictionary['rsa_si'].shape
+					and dictionary['rsa_sr'].shape == dictionary['rsa_ri'].shape
+					and dictionary['rsa_sr'].shape == dictionary['topo_sim'].shape)
+
+		if n_models > 1:
+			rsa_srs_avg = np.mean(dictionary['rsa_sr'], axis=0)
+			rsa_sis_avg = np.mean(dictionary['rsa_si'], axis=0)
+			rsa_ris_avg = np.mean(dictionary['rsa_ri'], axis=0)
+			topo_similarities_avg = np.mean(dictionary['topo_sim'], axis=0)
+		else:
+			rsa_srs_avg = dictionary['rsa_sr']
+			rsa_sis_avg = dictionary['rsa_si']
+			rsa_ris_avg = dictionary['rsa_ri']
+			topo_similarities_avg = dictionary['topo_sim']
 
 
-	iterations = range(len(losses_avg))
+		metrics_avg_per_dataset[dataset] = {
+			'rsa_sr' : rsa_srs_avg,
+			'rsa_si' : rsa_sis_avg,
+			'rsa_ri' : rsa_ris_avg,
+			'topo_sim' : topo_similarities_avg
+		}
 
-	# RSA plot
+	
+	# print("Planning to plot")
+	# print()
+	# print(metrics_avg_per_dataset)
+
+	colors = {}
+	colors['blue_dark'] = (7, 13, 79)
+	colors['blue_medium'] = (6, 29, 229)
+	colors['blue_light'] = (158, 200, 239)
+	colors['green'] = (44, 132, 33)
+	colors['green_dark'] = (27, 89, 17)
+	colors['green_medium'] = (124, 219, 109)
+	colors['orange'] = (255, 106, 0)
+	colors['red_light'] = (219, 87, 87)
+	colors['red_dark'] = (219, 8, 8)
+	colors['purple'] = (139, 116, 173)
+
+	for k in colors.keys():
+		colors[k] = (colors[k][0] / 255, colors[k][1] / 255, colors[k][2] / 255)
+
+	if debugging:
+		plt.close('all')
+
+	font_dict = {'family': 'serif'}
+
 	plt.clf()
-	plt.plot(iterations, rsa_srs_avg, color='blue')
-	plt.plot(iterations, rsa_sis_avg, color='green')
-	plt.plot(iterations, rsa_ris_avg, color='red')
-	plt.legend(('Sender-Receiver', 'Sender-Input', 'Receiver-Input'))
-	plt.xlabel('Epoch')
-	plt.ylabel('RSA score')
+	fig, ax = plt.subplots(figsize=(16,4))
 
-	plt.savefig('{}/rsa_curves.png'.format(output_dir))
+	ax.plot(metrics_avg_per_dataset['balanced_3_3']['rsa_si'], color=colors['blue_light'], label='Baseline Sender-Input')
+	ax.plot(metrics_avg_per_dataset['balanced_3_3']['rsa_ri'], color=colors['blue_dark'], label='Baseline Receiver-Input')
+	ax.plot(metrics_avg_per_dataset['different_targets_3_3']['rsa_si'], color=colors['green_medium'], label='Diff targets Sender-Input')
+	ax.plot(metrics_avg_per_dataset['different_targets_3_3']['rsa_ri'], color=colors['green_dark'], label='Diff targets Receiver-Input')
+	ax.plot(metrics_avg_per_dataset['uneven_3_3']['rsa_si'], color=colors['red_light'], label='Skewed Sender-Input')
+	ax.plot(metrics_avg_per_dataset['uneven_3_3']['rsa_ri'], color=colors['red_dark'], label='Skewed Receiver-Input')
 
-	# Acc, loss, message disntinctness plot
+	
+	plt.xlabel('Epoch') # 'Iteration'
+	plt.grid(True)
+	plt.rc('font', family='serif')
+
+	plt.legend(frameon=False, bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0., prop=font_dict)
+
+	plt.savefig('{}/rsa_training_curves.png'.format(output_dir), bbox_inches='tight')
+
+	if debugging:
+		plt.show()
+
 	plt.clf()
-	plt.plot(iterations, accuracies_avg, color='blue')
-	plt.plot(iterations, losses_avg, color='green')
-	plt.plot(iterations, distincts_avg, color='red')
-	plt.legend(('Accuracy', 'Loss', 'Message distinctness'))
+	fig, ax = plt.subplots(figsize=(16,4))
+
+	ax.plot(metrics_avg_per_dataset['balanced_3_3']['topo_sim'], color=colors['purple'], label='Baseline Topographic similarity')
+	ax.plot(metrics_avg_per_dataset['different_targets_3_3']['topo_sim'], color=colors['orange'], label='Diff targets Topographic similarity')
+	ax.plot(metrics_avg_per_dataset['uneven_3_3']['topo_sim'], color=colors['blue_light'], label='Skewed Topographic similarity')
+
 	plt.xlabel('Epoch')
+	plt.grid(True)
+	plt.rc('font', family='serif')
 
-	plt.savefig('{}/acc_loss_curves.png'.format(output_dir))
+	plt.legend(frameon=False, bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0., prop=font_dict)
 
-	# Perplexity, topological similarities plot
-	plt.clf()
-	plt.plot(iterations, perplexities_avg, color='blue')
-	plt.plot(iterations, topo_similarities_avg, color='green')
-	plt.legend(('Perplexity', 'Topological similarity'))
-	plt.xlabel('Epoch')
+	plt.savefig('{}/topographic_sim_training_curves.png'.format(output_dir), bbox_inches='tight')
 
-	plt.savefig('{}/perplexity_topo_sim_curves.png'.format(output_dir))
+	if debugging:
+		plt.show()
 
 	print('Plots saved in {}'.format(output_dir))
 
@@ -224,19 +281,139 @@ def plot_training_meters_curves(model_ids, analysis_id, plots_dir):
 
 
 
-# pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-# 	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+
+
+
+
+
+
+
+
+
+# def plot_training_meters_curves(model_ids, analysis_id, plots_dir, debugging=false):
+# 	output_dir = '{}/{}'.format(plots_dir, analysis_id)
+
+# 	if not os.path.exists(output_dir):
+# 		os.mkdir(output_dir)
+
+# 	for i, model_id in enumerate(model_ids):
+# 		(rsa_srs_list,
+# 		rsa_sis_list,
+# 		rsa_ris_list,
+# 		topological_sims_list) = get_training_values(model_id, per_epoch=true, debugging=debugging)
+
+# 		for l in [rsa_sis_list, rsa_ris_list, topological_sims_list]:
+# 			assert len(rsa_srs_list) == len(l)
+
+# 		if i == 0:
+# 			rsa_srs = np.array(rsa_srs_list)
+# 			rsa_sis = np.array(rsa_sis_list)
+# 			rsa_ris = np.array(rsa_ris_list)
+# 			topo_similarities = np.array(topological_sims_list)
+# 		else:
+# 			length = rsa_srs.shape[-1]
+
+# 			if len(rsa_srs_list) < length:
+# 				if rsa_srs.ndim == 1:
+# 					rsa_srs = rsa_srs[:len(rsa_srs_list)]
+# 					rsa_sis = rsa_sis[:len(rsa_srs_list)]
+# 					rsa_ris = rsa_ris[:len(rsa_srs_list)]
+# 					topo_similarities = topo_similarities[:len(rsa_srs_list)]
+# 				else:
+# 					assert rsa_srs.ndim == 2
+# 					rsa_srs = rsa_srs[:, 0:len(rsa_srs_list)]
+# 					rsa_sis = rsa_sis[:, 0:len(rsa_srs_list)]
+# 					rsa_ris = rsa_ris[:, 0:len(rsa_srs_list)]
+# 					topo_similarities = topo_similarities[:, 0:len(rsa_srs_list)]
+# 			else:
+# 				rsa_srs_list = rsa_srs_list[:length]
+# 				rsa_sis_list = rsa_sis_list[:length]
+# 				rsa_ris_list = rsa_ris_list[:length]
+# 				topological_sims_list = topological_sims_list[:length]
+
+# 			rsa_srs = np.vstack((rsa_srs, np.array(rsa_srs_list)))
+# 			rsa_sis = np.vstack((rsa_sis, np.array(rsa_sis_list)))
+# 			rsa_ris = np.vstack((rsa_ris, np.array(rsa_ris_list)))
+# 			topo_similarities = np.vstack((topo_similarities, np.array(topological_sims_list)))
+
+# 	if rsa_srs.ndim > 1:
+# 		assert (rsa_srs.shape[0] == len(model_ids)
+# 				and rsa_srs.shape == rsa_sis.shape
+# 				and rsa_srs.shape == rsa_ris.shape
+# 				and rsa_srs.shape == topo_similarities.shape)
+
+# 	if len(model_ids) > 1:
+# 		rsa_srs_avg = np.mean(rsa_srs, axis=0)
+# 		rsa_sis_avg = np.mean(rsa_sis, axis=0)
+# 		rsa_ris_avg = np.mean(rsa_ris, axis=0)
+# 		topo_similarities_avg = np.mean(topo_similarities, axis=0)
+# 	else:
+# 		rsa_srs_avg = rsa_srs
+# 		rsa_sis_avg = rsa_sis
+# 		rsa_ris_avg = rsa_ris
+# 		topo_similarities_avg = topo_similarities
+
+# 	# perplexities_avg /= 20 # obverters?
+# 	# lang_entropies_avg /= 20
+
+
+# 	iterations = range(len(rsa_srs_avg))
+
+# 	colors = {}
+# 	colors['blue_dark'] = (7, 13, 79)
+# 	colors['blue_medium'] = (6, 29, 229)
+# 	colors['blue_light'] = (158, 200, 239)
+# 	colors['green'] = (44, 132, 33)
+# 	colors['orange'] = (255, 106, 0)
+# 	colors['red'] = (253, 6, 6)
+# 	colors['purple'] = (139, 116, 173)
+
+# 	for k in colors.keys():
+# 		colors[k] = (colors[k][0] / 255, colors[k][1] / 255, colors[k][2] / 255)
+
+	
+# 	if debugging:
+# 		plt.close('all')
+
+
+# 	font_dict = {'family': 'serif'}
+
+# 	plt.clf()
+# 	fig, ax = plt.subplots(figsize=(16,4))
+
+# 	ax.plot(iterations, rsa_srs_avg, color=colors['blue_medium'], label='rsa sender-receiver')
+# 	ax.plot(iterations, rsa_sis_avg, color=colors['green'], label='rsa sender-input')
+# 	ax.plot(iterations, rsa_ris_avg, color=colors['red'], label='rsa receiver-input')
+	
+# 	plt.xlabel('epoch') # 'iteration'
+# 	plt.grid(true)
+# 	plt.rc('font', family='serif')
+
+# 	plt.legend(frameon=false, bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0., prop=font_dict)
+
+# 	plt.savefig('{}/rsa_training_curves.png'.format(output_dir), bbox_inches='tight')
+
+# 	if debugging:
+# 		plt.show()
+
+# 	plt.clf()
+# 	fig, ax = plt.subplots(figsize=(16,4))
+
+# 	ax.plot(iterations, topo_similarities_avg, color=colors['purple'], label='topographic similarity')
+# 	# ax.plot(iterations, distincts_avg, color=colors['purple'], label='message distinctness')
+# 	# ax.plot(iterations, perplexities_avg, color=colors['red'], label='perplexity per symbol')
+# 	# ax.plot(iterations, lang_entropies_avg, color=colors['orange'], label='language entropy')
+
+# 	plt.xlabel('epoch')
+# 	plt.grid(true)
+# 	plt.rc('font', family='serif')
+
+# 	plt.legend(frameon=false, bbox_to_anchor=(1.01, 1), loc='upper left', borderaxespad=0., prop=font_dict)
+
+# 	plt.savefig('{}/topographic_sim_training_curves.png'.format(output_dir), bbox_inches='tight')
+
+# 	if debugging:
+# 		plt.show()
+
+# 	print('plots saved in {}'.format(output_dir))
+# 	

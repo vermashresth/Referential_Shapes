@@ -16,6 +16,7 @@ from metadata import does_shapes_onehot_metadata_exist, create_shapes_onehot_met
 from decode import dump_words
 from visual_module import CNN
 from dump_cnn_features import save_features
+# from rsa import representation_similarity_analysis_freq
 
 
 use_gpu = torch.cuda.is_available()
@@ -53,7 +54,7 @@ if len(sys.argv) > 1:
 	vl_loss_weight = float(sys.argv[5])
 	bound_weight = float(sys.argv[6])
 	model_file_name = sys.argv[7]
-	cnn_model_file_name = sys.argv[8] # dumps/0408134521185696/0408134521185696_52_model
+	cnn_model_file_name = sys.argv[8] # dumps/0408134521185696/0408134521185696_41_model
 	rsa_sampling = int(sys.argv[9])
 
 #assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
@@ -168,7 +169,9 @@ test_distinctness_meter,
 test_rsa_sr_meter,
 test_rsa_si_meter,
 test_rsa_ri_meter,
-test_topological_sim_meter) = evaluate(model, test_data, test_word_counts, test_metadata, debugging)
+test_topological_sim_meter,
+test_input_embed_send,
+test_input_embed_rec) = evaluate(model, test_data, test_word_counts, test_metadata, debugging)
 
 print()
 print('Test accuracy: {}'.format(test_acc_meter.avg))
@@ -191,3 +194,25 @@ if should_dump:
 
 	if should_covert_to_words:
 		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(dump_id, best_epoch))
+
+	# if 'uneven' in shapes_dataset:
+	# 	# Calculate RSA and topological wrt shape-color frequency
+	# 	shape_color_freq, freq_rsa_sr, freq_rsa_si, freq_rsa_ri, freq_topological_similarity = representation_similarity_analysis_freq(
+	# 			np.load('{}/test_features.npy'.format(features_folder_name)),
+	# 			test_metadata,
+	# 			test_messages.cpu().numpy(),
+	# 			test_input_embed_send.detach().cpu(),
+	# 			test_input_embed_rec.detach().cpu(),
+	# 			samples=500
+	# 		)
+
+	# 	freq_dict = {
+	# 		'shape_color_freq' : shape_color_freq,
+	# 		'rsa_sr': freq_rsa_sr,
+	# 		'rsa_si': freq_rsa_si,
+	# 		'rsa_ri': freq_rsa_ri,
+	# 		'topo': freq_topological_similarity,
+	# 	}
+
+	# 	pickle.dump(freq_dict, open('{}/{}_{}_test_frequency_based_rsa_topo.p'.format(current_model_dir, dump_id, best_epoch), 'wb'))
+			

@@ -1,10 +1,6 @@
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+import pickle
+import os
 from functools import partial
-import torch
-
-def discretize_messages(m):
-    _, res = torch.max(m, dim=-1)
-    return res
 
 class AverageMeter:
     def __init__(self):
@@ -28,7 +24,6 @@ class AverageMeter:
         self.count += n
         self.avg = self.sum / self.count
         self.all_values.append(value)
-
 
 class EarlyStopping:
     def __init__(self, mode='min', patience=20, threshold=1e-4, threshold_mode='rel'):
@@ -84,3 +79,35 @@ class EarlyStopping:
             self.mode_worse = (-float('inf'))
 
         self.is_better = partial(self._cmp, mode, threshold_mode, threshold)
+
+
+def get_model_dir(model_id):
+    dumps_dir = '../dumps'
+    return '{}/{}'.format(dumps_dir, model_id)
+
+def get_pickle_file(model_dir, file_name_id):
+    file_names = ['{}/{}'.format(model_dir, f) for f in os.listdir(model_dir) if file_name_id in f]
+    
+    if len(file_names) > 1:
+        # Make sure we want training dumps
+        assert '_test_' not in file_name_id and '_eval_' not in file_name_id
+        file_names = [f for f in file_names if '_test_' not in f and '_eval_' not in f]
+        if 'entropy' in file_name_id:
+            if len(file_names) == 2: # language and non language entropies
+                if len(file_names[0]) < len(file_names[1]):
+                    file_names = [file_names[0]]
+                else:
+                    file_names = [file_names[1]]
+
+    assert len(file_names) == 1
+
+    file_name = file_names[0]
+
+    return pickle.load(open(file_name, 'rb'))
+
+
+def to_img(x):
+    x = 0.5 * (x + 1)
+    x = x.clamp(0, 1)
+    x = x.view(x.size(0), 3, 30, 30)
+    return x

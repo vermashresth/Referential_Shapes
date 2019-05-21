@@ -13,9 +13,12 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	rsa_si_meter = AverageMeter()
 	rsa_ri_meter = AverageMeter()
 	topological_sim_meter = AverageMeter()
+	language_entropy_meter = AverageMeter()
 	messages = []
 	indices = []
 	w_counts = word_counts.clone()
+
+	debugging_counter = 0
 
 	for d in data:
 		if is_training_mode:
@@ -32,7 +35,11 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_sr,
 		rsa_si,
 		rsa_ri,
-		topological_sim) = model(target, distractors, w_counts, onehot_metadata[idxs[:,0]])
+		topological_sim,
+		lang_entropy) = model(target, 
+								distractors, 
+								w_counts, 
+								onehot_metadata[idxs[:,0]] if onehot_metadata is not None else None)
 
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
@@ -42,6 +49,7 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_si_meter.update(rsa_si)
 		rsa_ri_meter.update(rsa_ri)
 		topological_sim_meter.update(topological_sim)
+		language_entropy_meter.update(lang_entropy)
 
 		messages.append(discretize_messages(m) if is_training_mode else m)
 		indices.append(idxs)
@@ -51,7 +59,9 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 			loss.backward()
 			optimizer.step()
 
-		if debugging:
+		debugging_counter += 1
+
+		if debugging and debugging_counter == 5:
 			break
 
 	return (loss_meter, 
@@ -64,7 +74,8 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_sr_meter,
 		rsa_si_meter,
 		rsa_ri_meter,
-		topological_sim_meter)
+		topological_sim_meter,
+		language_entropy_meter)
 
 
 def train_one_epoch(model, data, optimizer, word_counts, onehot_metadata, debugging=False):
