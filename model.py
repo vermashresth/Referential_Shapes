@@ -7,6 +7,7 @@ from torch.distributions.relaxed_categorical import RelaxedOneHotCategorical
 from visual_module import CNN
 from rsa import representation_similarity_analysis
 from utils import discretize_messages
+from entropy import language_entropy
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size, 
@@ -293,7 +294,7 @@ class Model(nn.Module):
 		# Pad with EOS tokens if EOS is predicted before max sentence length
 		m = self._pad(m, seq_lengths)
 
-		w_counts = self._get_word_counts(m)
+		w_counts = 0 if self.vl_loss_weight == 0 else self._get_word_counts(m)
 
 		# Forward pass on Receiver with the message
 		r_transform, input_embed_rep_receiver = self.receiver(m) # g(.)
@@ -334,11 +335,13 @@ class Model(nn.Module):
 
 		loss = loss + self.vl_loss_weight * vl_loss
 
+		messages_for_metrics = discretize_messages(m).detach().cpu().numpy() if self.training else m.cpu().numpy()
+
 		if self.n_rsa_samples > 0:
 			rsa_sr, rsa_si, rsa_ri, topological_sim = representation_similarity_analysis(
 					target_sender.cpu(),
 					target_onehot_metadata,
-					discretize_messages(m).detach().cpu().numpy() if self.training else m.cpu().numpy(),
+					messages_for_metrics,
 					input_embed_rep_sender.detach().cpu(),
 					input_embed_rep_receiver.detach().cpu(),
 					samples=self.n_rsa_samples
@@ -358,4 +361,5 @@ class Model(nn.Module):
 			rsa_sr,
 			rsa_si,
 			rsa_ri,
-			topological_sim)
+			topological_sim,
+			language_entropy(messages_for_metrics))

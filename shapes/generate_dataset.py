@@ -44,13 +44,10 @@ def get_color_given_shape_probs(n_colors=3):
 
 	return probs
 
-def get_datasets(train_size, val_size, test_size, f_get_dataset):
-	is_uneven = (f_get_dataset is get_dataset_uneven 
-				or f_get_dataset is get_dataset_uneven_different_targets
-				or f_get_dataset is get_dataset_uneven_incomplete)
+def get_datasets(train_size, val_size, test_size, f_get_dataset, is_uneven):
 	if is_uneven:
 		shapes_probs = get_shape_probs()
-		if f_get_dataset is get_dataset_uneven_incomplete:
+		if f_get_dataset is get_dataset_uneven_incomplete or f_get_dataset is get_dataset_uneven_different_targets_row_incomplete:
 			color_given_shape_probs = get_color_given_shape_probs(n_colors=2)
 		else:
 			color_given_shape_probs = get_color_given_shape_probs()
@@ -426,6 +423,32 @@ def get_dataset_uneven_incomplete(dataset_size, shapes_probs, color_given_shape_
 
 	return images
 
+# Exclude red triangle, blue square, green circle
+def get_dataset_uneven_different_targets_row_incomplete(dataset_size, shapes_probs, color_given_shape_probs):
+	images = []
+
+	for i in range(dataset_size):
+		shape = np.random.choice(range(N_SHAPES), p=shapes_probs)
+		color_probs = color_given_shape_probs[shape*N_SHAPES:shape*N_SHAPES+N_COLORS]
+		color = np.random.choice(range(N_COLORS), p=color_probs)
+		size = np.random.randint(N_SIZES)
+		column = np.random.randint(N_CELLS)
+
+		img1 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		# Different row
+		img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		while img1.metadata == img2.metadata:
+			img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		images.append((img1, img2))
+
+
+	shuffle(images)
+
+	return images
+
 
 # Only change location
 def get_dataset_uneven_different_targets(dataset_size, shapes_probs, color_given_shape_probs):
@@ -444,6 +467,58 @@ def get_dataset_uneven_different_targets(dataset_size, shapes_probs, color_given
 
 		while img1.metadata == img2.metadata:
 			img2 = get_image([Figure(shape, color, size, r=-1, c=-1)])
+
+		images.append((img1, img2))
+
+
+	shuffle(images)
+
+	return images
+
+# Only change row
+def get_dataset_uneven_different_targets_row(dataset_size, shapes_probs, color_given_shape_probs):
+	images = []
+
+	for i in range(dataset_size):
+		shape = np.random.choice(range(N_SHAPES), p=shapes_probs)
+		color_probs = color_given_shape_probs[shape*N_SHAPES:shape*N_SHAPES+N_COLORS]
+		color = np.random.choice(range(N_COLORS), p=color_probs)
+		size = np.random.randint(N_SIZES)
+		column = np.random.randint(N_CELLS)
+
+		img1 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		# Different row
+		img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		while img1.metadata == img2.metadata:
+			img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
+
+		images.append((img1, img2))
+
+
+	shuffle(images)
+
+	return images
+
+# Only change size
+def get_dataset_uneven_different_targets_size(dataset_size, shapes_probs, color_given_shape_probs):
+	images = []
+
+	for i in range(dataset_size):
+		shape = np.random.choice(range(N_SHAPES), p=shapes_probs)
+		color_probs = color_given_shape_probs[shape*N_SHAPES:shape*N_SHAPES+N_COLORS]
+		color = np.random.choice(range(N_COLORS), p=color_probs)
+		row = np.random.randint(N_CELLS)
+		column = np.random.randint(N_CELLS)
+
+		img1 = get_image([Figure(shape, color, size=-1, r=row, c=column)])
+
+		# Different location
+		img2 = get_image([Figure(shape, color, size=-1, r=row, c=column)])
+
+		while img1.metadata == img2.metadata:
+			img2 = get_image([Figure(shape, color, size=-1, r=row, c=column)])
 
 		images.append((img1, img2))
 
@@ -503,6 +578,10 @@ def get_dataset_different_targets_zero_shot(dataset_size):
 	shuffle(images)
 
 	return images
+
+# Only have red triangle, blue square, green circle
+# Only change row
+
 
 
 # def get_dataset_dummy_different_targets(size):

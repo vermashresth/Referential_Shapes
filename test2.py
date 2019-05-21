@@ -22,8 +22,8 @@ import argparse
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = True#not debugging
-should_covert_to_words = True#not debugging
-should_dump_indices = True#not debugging
+should_covert_to_words = not debugging
+should_dump_indices = not debugging
 
 
 EPOCHS = 60 if not debugging else 3
@@ -185,185 +185,7 @@ if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
 
 
-model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, 
-	bound_idx, max_sentence_length, 
-	vl_loss_weight, bound_weight, 
-	should_train_visual, rsa_sampling,
-	use_gpu)
-
-if use_gpu:
-	model = model.cuda()
-	
-optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
-es = EarlyStopping(mode="max", patience=10, threshold=0.005, threshold_mode="rel") # Not 30 patience
-
-# Init metric trackers
-losses_meters = []
-eval_losses_meters = []
-
-accuracy_meters = []
-eval_accuracy_meters = []
-
-entropy_meters = []
-eval_entropy_meters = []
-
-distinctness_meters = []
-eval_distinctness_meters = []
-
-rsa_sr_meters = []
-eval_rsa_sr_meters = []
-
-rsa_si_meters = []
-eval_rsa_si_meters = []
-
-rsa_ri_meters = []
-eval_rsa_ri_meters = []
-
-topological_sim_meters = []
-eval_topological_sim_meters = []
-
-language_entropy_meters = []
-eval_language_entropy_meters = []
-
-
-word_counts = torch.zeros([vocab_size])
-if use_gpu:
-	word_counts = word_counts.cuda()
-
-eval_word_counts = torch.zeros([vocab_size])
-if use_gpu:
-	eval_word_counts = eval_word_counts.cuda()
-
-is_loss_nan = False
 should_evaluate_best = True
-
-train_start_time = time.time()
-
-# Train
-for epoch in range(EPOCHS):
-	epoch_start_time = time.time()
-
-	e = epoch + starting_epoch
-
-	(epoch_loss_meter, 
-	epoch_acc_meter, 
-	messages, 
-	indices,
-	epoch_w_counts, 
-	epoch_entropy_meter,
-	epoch_distinctness_meter,
-	epoch_rsa_sr_meter,
-	epoch_rsa_si_meter,
-	epoch_rsa_ri_meter,
-	epoch_topological_sim_meter,
-	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging)
-
-	if math.isnan(epoch_loss_meter.avg):
-		print("The train loss in NaN. Stop training")
-		is_loss_nan = True
-		break
-
-	losses_meters.append(epoch_loss_meter)
-	accuracy_meters.append(epoch_acc_meter)
-	entropy_meters.append(epoch_entropy_meter)
-	distinctness_meters.append(epoch_distinctness_meter)
-	rsa_sr_meters.append(epoch_rsa_sr_meter)
-	rsa_si_meters.append(epoch_rsa_si_meter)
-	rsa_ri_meters.append(epoch_rsa_ri_meter)
-	topological_sim_meters.append(epoch_topological_sim_meter)
-	language_entropy_meters.append(epoch_lang_entropy_meter)
-	word_counts += epoch_w_counts
-
-	(eval_loss_meter, 
-	eval_acc_meter, 
-	eval_messages, 
-	eval_indices,
-	_w_counts, 
-	eval_entropy_meter,
-	eval_distinctness_meter,
-	eval_rsa_sr_meter,
-	eval_rsa_si_meter,
-	eval_rsa_ri_meter,
-	eval_topological_sim_meter,
-	eval_lang_entropy_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
-
-	eval_losses_meters.append(eval_loss_meter)
-	eval_accuracy_meters.append(eval_acc_meter)
-	eval_entropy_meters.append(eval_entropy_meter)
-	eval_distinctness_meters.append(eval_distinctness_meter)
-	eval_rsa_sr_meters.append(eval_rsa_sr_meter)
-	eval_rsa_si_meters.append(eval_rsa_si_meter)
-	eval_rsa_ri_meters.append(eval_rsa_ri_meter)
-	eval_topological_sim_meters.append(eval_topological_sim_meter)
-	eval_language_entropy_meters.append(eval_lang_entropy_meter)
-
-	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
-	if rsa_sampling > 0:
-		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {}, Topological sim: {}'.format(
-			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
-		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}, Eval Topological sim: {}'.format(
-			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
-	seconds_current_epoch = time.time() - epoch_start_time
-	print('    (Took {} seconds)'.format(seconds_current_epoch))
-
-	es.step(eval_acc_meter.avg)
-
-	if should_dump:
-		# Save model every epoch
-		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
-
-		# Dump messages every epoch
-		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-
-		# Dump indices as often as messages
-		if should_dump_indices:
-			pickle.dump(indices, open('{}/{}_{}_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
-			pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
-
-		if should_covert_to_words:
-			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
-			dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
-
-	if es.is_converged:
-		print("Converged in epoch {}".format(e))
-		break
-
-	if seconds_current_epoch * (e+1) >= 75000:
-		print("Stopping because wall time limit is close")
-		break
-
-print()
-print('Training took {} seconds'.format(time.time() - train_start_time))
-
-if is_loss_nan:
-	should_dump = False
-	should_evaluate_best = False
-
-if should_dump:
-	# Dump latest stats
-	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(language_entropy_meters, open('{}/{}_{}_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_language_entropy_meters, open('{}/{}_{}_eval_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-
-
 # Evaluate best model on test data
 if should_evaluate_best:
 
@@ -373,14 +195,14 @@ if should_evaluate_best:
 		best_epoch = e
 	else:
 		# Actually pick the best
-		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
+		best_epoch = 52
 		best_model = Model(n_image_features, vocab_size,
 			EMBEDDING_DIM, HIDDEN_SIZE, 
 			bound_idx, max_sentence_length, 
 			vl_loss_weight, bound_weight, 
 			should_train_visual, rsa_sampling,
 			use_gpu)
-		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
+		best_model_name = 'dumps/0510200906157042/0510200906157042_52_model'
 		state = torch.load(best_model_name, map_location= lambda storage, location: storage)
 		best_model.load_state_dict(state)
 

@@ -13,9 +13,15 @@ def get_pickle_file(model_dir, file_name_id):
 	file_names = ['{}/{}'.format(model_dir, f) for f in os.listdir(model_dir) if file_name_id in f]
 	
 	if len(file_names) > 1:
-		# Make sure we want training dumpsse
+		# Make sure we want training dumps
 		assert '_test_' not in file_name_id and '_eval_' not in file_name_id
 		file_names = [f for f in file_names if '_test_' not in f and '_eval_' not in f]
+		if 'entropy' in file_name_id:
+			if len(file_names) == 2: # language and non language entropies
+				if len(file_names[0]) < len(file_names[1]):
+					file_names = [file_names[0]]
+				else:
+					file_names = [file_names[1]]
 
 	assert len(file_names) == 1
 
@@ -23,8 +29,8 @@ def get_pickle_file(model_dir, file_name_id):
 
 	return pickle.load(open(file_name, 'rb'))
 
-def load_dictionaries(vocab_size):
-	with open("../data/shapes/dict_{}.pckl".format(vocab_size), "rb") as f:
+def load_dictionaries(folder, vocab_size):
+	with open("../data/{}/dict_{}.pckl".format(folder, vocab_size), "rb") as f:
 	    d = pickle.load(f)
 	    word_to_idx = d["word_to_idx"] # dictionary w->i
 	    idx_to_word = d["idx_to_word"] # list of words
@@ -258,6 +264,7 @@ class AverageMeter:
         self.avg = None
         self.sum = None
         self.count = None
+        self.all_values = None
         self.reset()
 
     def reset(self):
@@ -265,12 +272,14 @@ class AverageMeter:
         self.avg = 0
         self.sum = 0
         self.count = 0
+        self.all_values = []
 
     def update(self, value, n=1):
         self.value = value
         self.sum += value * n
         self.count += n
         self.avg = self.sum / self.count
+        self.all_values.append(value)
 
 
 

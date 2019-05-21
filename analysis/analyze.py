@@ -5,7 +5,7 @@ import pandas as pd
 
 from enum import Enum
 
-from stats_calculator import get_test_messages_stats, get_test_metrics, plot_training_meters_curves
+from stats_calculator import get_test_messages_stats, get_test_metrics, plot_rsa_topo_curves
 
 debugging = False
 
@@ -17,13 +17,12 @@ if len(sys.argv) == 1:
 	# This is going to be broken....
 	#all_folders_names = os.listdir('../dumps')
 	#inputs = ['{} {}'.format(folder_name, folder_name[folder_name.find('_')+1:folder_name.rfind('_')]) for folder_name in all_folders_names]
-	print('Usage python analyze.py [analysis_id] [data_folder] [mode=normal/average] [model_id1 V L lambda alpha] [model_id2 V L lambda alpha] ...')
+	print('Usage python analyze.py [analysis_id] [mode=normal/average] [model_id1 data_folder V L lambda alpha] [model_id2 data_folder V L lambda alpha] ...')
 	assert False
 else:
 	analysis_id = sys.argv[1]
-	data_folder = sys.argv[2]
-	mode = sys.argv[3]
-	inputs = sys.argv[4:]
+	mode = sys.argv[2]
+	inputs = sys.argv[3:]
 
 if 'v' in mode:
 	mode = Mode.AVG
@@ -60,16 +59,19 @@ stats_dict = {
 	'RSA Sender-Receiver' : [],
 	'RSA Sender-Input' : [],
 	'RSA Receiver-Input' : [],
-	'Topological similarity': []
+	'Topological similarity': [],
+	'Language entropy': []
 }
 
 # Read in the settings we want to analyze
 for inp in inputs:
-	model_id, vocab_size, L, vl_loss_weight, bound_weight = inp.split()
+	model_id, dataset_id, vocab_size, L, vl_loss_weight, bound_weight = inp.split()
+
+	print('Processing model {}'.format(model_id))
 
 	if not debugging:
-		min_len, max_len, avg_len, n_utt = get_test_messages_stats(model_id, vocab_size, data_folder, plots_dir, should_plot=False)
-		acc, entropy, distinctness, rsa_sr, rsa_si, rsa_ri, topological_sim = get_test_metrics(model_id)
+		min_len, max_len, avg_len, n_utt = get_test_messages_stats(model_id, vocab_size, dataset_id, plots_dir, should_plot=False)
+		acc, entropy, distinctness, rsa_sr, rsa_si, rsa_ri, topological_sim, lang_entropy = get_test_metrics(model_id)
 	else:
 		model_id = 'debug_mode'
 		acc = np.random.random()
@@ -79,12 +81,13 @@ for inp in inputs:
 		rsa_si = np.random.random()
 		rsa_ri = np.random.random()
 		topological_sim = np.random.random()
+		lang_entropy = np.random.random()
 		min_len = np.random.randint(1,10)
 		max_len = min_len + np.random.randint(2,5)
 		avg_len = (min_len + max_len) / 2
 		n_utt = np.random.randint(1, vocab_size)
 
-	stats_dict['dataset'].append(data_folder)
+	stats_dict['dataset'].append(dataset_id)
 	stats_dict['id'].append(model_id)
 	stats_dict['|V|'].append(vocab_size)
 	stats_dict['L'].append(L)
@@ -102,13 +105,14 @@ for inp in inputs:
 	stats_dict['RSA Sender-Input'].append(rsa_si)
 	stats_dict['RSA Receiver-Input'].append(rsa_ri)
 	stats_dict['Topological similarity'].append(topological_sim)
+	stats_dict['Language entropy'].append(lang_entropy)
 
 	print('id: {}, |V|: {}, L: {}, Lambda: {}, Alpha: {}, Accuracy: {}'.format(
 		model_id, vocab_size, L, vl_loss_weight, bound_weight, acc))
 
-# Dump all stats
+#Dump all stats
 df = pd.DataFrame(stats_dict)
-df.to_csv('{}/{}_all_stats_{}.csv'.format(stats_dir, analysis_id, data_folder), index=None, header=True)
+df.to_csv('{}/{}_all_stats_{}.csv'.format(stats_dir, analysis_id, dataset_id), index=None, header=True)
 
 if mode == Mode.AVG:
 	avg_stats_dict = {k: [] for k in stats_dict.keys() if k != 'id'}
@@ -138,11 +142,11 @@ if mode == Mode.AVG:
 
 	# Dump avg stats
 	df = pd.DataFrame(avg_stats_dict)
-	df.to_csv('{}/{}_avg_stats_{}.csv'.format(stats_dir, analysis_id, data_folder), index=None, header=True)
+	df.to_csv('{}/{}_avg_stats_{}.csv'.format(stats_dir, analysis_id, dataset_id), index=None, header=True)
 
-	plot_training_meters_curves(stats_dict['id'], '{}_{}'.format(analysis_id, data_folder), plots_dir)
+	#plot_training_meters_curves(stats_dict['id'], '{}_{}'.format(analysis_id, dataset_id), plots_dir, debugging)
 
-
+	plot_rsa_topo_curves(stats_dict, analysis_id, plots_dir, debugging)
 
 
 
