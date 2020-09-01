@@ -51,7 +51,7 @@ def representation_similarity_analysis(
         s1, s2 = rnd[0], rnd[1]
 
         sim_image_features[i] = scipy.spatial.distance.cosine(
-            test_images[s1], test_images[s2]
+            test_images[s1].detach(), test_images[s2].detach()    
         )
         sim_metadata[i] = scipy.spatial.distance.cosine(
             test_metadata[s1], test_metadata[s2]

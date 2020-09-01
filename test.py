@@ -47,19 +47,19 @@ use_symbolic_input = False
 
 
 cmd_parser = argparse.ArgumentParser()
-cmd_parser.add_argument('seed', type=int)
-cmd_parser.add_argument('vocab_size', type=int)
-cmd_parser.add_argument('max_sentence_length', type=int)
-cmd_parser.add_argument('vl_loss_weight', type=float)
-cmd_parser.add_argument('bound_weight', type=float)
-cmd_parser.add_argument('--shapes_dataset')
-cmd_parser.add_argument('--use_symbolic_input', action='store_true')
-
-excl_group = cmd_parser.add_mutually_exclusive_group()
-excl_group.add_argument('--should_train_visual', action='store_true')
-excl_group.add_argument('--cnn_model_file_name')
-
-cmd_parser.add_argument('rsa_sampling', type=int)
+# cmd_parser.add_argument('seed', type=int)
+# cmd_parser.add_argument('vocab_size', type=int)
+# cmd_parser.add_argument('max_sentence_length', type=int)
+# cmd_parser.add_argument('vl_loss_weight', type=float)
+# cmd_parser.add_argument('bound_weight', type=float)
+# cmd_parser.add_argument('--shapes_dataset')
+# cmd_parser.add_argument('--use_symbolic_input', action='store_true')
+#
+# excl_group = cmd_parser.add_mutually_exclusive_group()
+# excl_group.add_argument('--should_train_visual', action='store_true')
+# excl_group.add_argument('--cnn_model_file_name')
+#
+# cmd_parser.add_argument('rsa_sampling', type=int)
 
 cmd_args = cmd_parser.parse_args()
 
@@ -88,7 +88,7 @@ starting_epoch = 0
 ################# Print info ####################
 print('========================================')
 print('Model id: {}'.format(model_id))
-print('Seed: {}'.format(seed))	
+print('Seed: {}'.format(seed))
 print('Training visual module: {}'.format(should_train_visual))
 if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
 	print('Loading pretrained CNN from: {}'.format(cnn_model_file_name))
@@ -115,7 +115,7 @@ if not shapes_dataset is None:
 
 # Load vocab
 word_to_idx, idx_to_word, bound_idx = load_dictionaries(
-	'shapes' if not shapes_dataset is None else 'mscoco', 
+	'shapes' if not shapes_dataset is None else 'mscoco',
 	vocab_size)
 
 # Load pretrained CNN if necessary
@@ -186,15 +186,15 @@ if should_dump and not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, 
-	bound_idx, max_sentence_length, 
-	vl_loss_weight, bound_weight, 
+	EMBEDDING_DIM, HIDDEN_SIZE,
+	bound_idx, max_sentence_length,
+	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
 	use_gpu)
 
 if use_gpu:
 	model = model.cuda()
-	
+
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 es = EarlyStopping(mode="max", patience=10, threshold=0.005, threshold_mode="rel") # Not 30 patience
 
@@ -246,11 +246,11 @@ for epoch in range(EPOCHS):
 
 	e = epoch + starting_epoch
 
-	(epoch_loss_meter, 
-	epoch_acc_meter, 
-	messages, 
+	(epoch_loss_meter,
+	epoch_acc_meter,
+	messages,
 	indices,
-	epoch_w_counts, 
+	epoch_w_counts,
 	epoch_entropy_meter,
 	epoch_distinctness_meter,
 	epoch_rsa_sr_meter,
@@ -275,11 +275,11 @@ for epoch in range(EPOCHS):
 	language_entropy_meters.append(epoch_lang_entropy_meter)
 	word_counts += epoch_w_counts
 
-	(eval_loss_meter, 
-	eval_acc_meter, 
-	eval_messages, 
+	(eval_loss_meter,
+	eval_acc_meter,
+	eval_messages,
 	eval_indices,
-	_w_counts, 
+	_w_counts,
 	eval_entropy_meter,
 	eval_distinctness_meter,
 	eval_rsa_sr_meter,
@@ -375,9 +375,9 @@ if should_evaluate_best:
 		# Actually pick the best
 		best_epoch = np.argmax([m.avg for m in eval_accuracy_meters])
 		best_model = Model(n_image_features, vocab_size,
-			EMBEDDING_DIM, HIDDEN_SIZE, 
-			bound_idx, max_sentence_length, 
-			vl_loss_weight, bound_weight, 
+			EMBEDDING_DIM, HIDDEN_SIZE,
+			bound_idx, max_sentence_length,
+			vl_loss_weight, bound_weight,
 			should_train_visual, rsa_sampling,
 			use_gpu)
 		best_model_name = '{}/{}_{}_model'.format(current_model_dir, model_id, best_epoch)
@@ -394,11 +394,11 @@ if should_evaluate_best:
 	if use_gpu:
 		test_word_counts = test_word_counts.cuda()
 
-	(test_loss_meter, 
-	test_acc_meter, 
-	test_messages, 
+	(test_loss_meter,
+	test_acc_meter,
+	test_messages,
 	test_indices,
-	_w_counts, 
+	_w_counts,
 	test_entropy_meter,
 	test_distinctness_meter,
 	test_rsa_sr_meter,
@@ -423,7 +423,7 @@ if should_evaluate_best:
 		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
 		if should_dump_indices:
-			pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))			
+			pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
 		if should_covert_to_words:
 			dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))

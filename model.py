@@ -1,3 +1,5 @@
+import numpy as np
+
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -10,8 +12,8 @@ from utils import discretize_messages
 from entropy import language_entropy
 
 class Sender(nn.Module):
-	def __init__(self, n_image_features, vocab_size, 
-		embedding_dim, hidden_size, 
+	def __init__(self, n_image_features, vocab_size,
+		embedding_dim, hidden_size,
 		bound_idx, max_sentence_length, vl_loss_weight, bound_weight,
 		use_gpu, greedy=True):
 		super().__init__()
@@ -49,7 +51,7 @@ class Sender(nn.Module):
 		nn.init.constant_(self.lstm_cell.bias_hh, val=0)
 		nn.init.constant_(self.lstm_cell.bias_hh[self.hidden_size:2 * self.hidden_size], val=1)
 
-	def _calculate_seq_len(self, seq_lengths, token, initial_length, seq_pos):	
+	def _calculate_seq_len(self, seq_lengths, token, initial_length, seq_pos):
 		if self.training:
 			max_predicted, vocab_index = torch.max(token, dim=1)
 			mask = (vocab_index == self.bound_token_idx) * (max_predicted == 1.0)
@@ -100,7 +102,7 @@ class Sender(nn.Module):
 
 		vl_loss = 0.0
 		entropy = 0.0
-		
+
 		if self.use_gpu:
 			c = c.cuda()
 			seq_lengths = seq_lengths.cuda()
@@ -115,7 +117,7 @@ class Sender(nn.Module):
 			p = F.softmax(vocab_scores, dim=1)
 			entropy += Categorical(p).entropy()
 
-			if self.training:	
+			if self.training:
 				rohc = RelaxedOneHotCategorical(tau, p)
 				token = rohc.rsample()
 
@@ -132,15 +134,15 @@ class Sender(nn.Module):
 			message.append(token)
 			input_embed_rep.append(emb)
 
-			self._calculate_seq_len(seq_lengths, token, 
+			self._calculate_seq_len(seq_lengths, token,
 				initial_length, seq_pos=i+1)
 
 			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 
-		return (torch.stack(message, dim=1), 
-				seq_lengths, 
-				vl_loss, 
+		return (torch.stack(message, dim=1),
+				seq_lengths,
+				vl_loss,
 				torch.mean(entropy) / self.max_sentence_length,
 				torch.stack(input_embed_rep, dim=1))
 
@@ -182,7 +184,7 @@ class Receiver(nn.Module):
 
 		if self.use_gpu:
 			h = h.cuda()
-			c = c.cuda()		
+			c = c.cuda()
 
 		emb = torch.matmul(m, self.embedding) if self.training else self.embedding[m]
 		_, (h, c) = self.lstm(emb, (h[None, ...], c[None, ...]))
@@ -192,9 +194,9 @@ class Receiver(nn.Module):
 
 class Model(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
-		embedding_dim, hidden_size, 
-		bound_idx, max_sentence_length, 
-		vl_loss_weight, bound_weight, 
+		embedding_dim, hidden_size,
+		bound_idx, max_sentence_length,
+		vl_loss_weight, bound_weight,
 		should_train_cnn, n_rsa_samples, use_gpu):
 		super().__init__()
 
@@ -211,7 +213,7 @@ class Model(nn.Module):
 			self.cnn = CNN(n_image_features)
 
 		self.sender = Sender(n_image_features, vocab_size,
-			embedding_dim, hidden_size, 
+			embedding_dim, hidden_size,
 			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
 			embedding_dim, hidden_size, use_gpu)
@@ -249,7 +251,7 @@ class Model(nn.Module):
 		return c
 
 	def _count_unique_messages(self, m):
-		return len(torch.unique(m, dim=0))
+		return np.unique(m.detach().numpy(), axis=0)
 
 	def forward(self, target, distractors, word_counts, target_onehot_metadata):
 		batch_size = target.shape[0]
@@ -272,7 +274,7 @@ class Model(nn.Module):
 				target_receiver = target
 			else:
 				# Extract features
-				target_sender = self.cnn(target[:, 0, :, :, :]) 
+				target_sender = self.cnn(target[:, 0, :, :, :])
 				target_receiver = self.cnn(target[:, 1, :, :, :])
 
 				# Just use the first distractor
@@ -309,7 +311,7 @@ class Model(nn.Module):
 
 		distractors_scores = []
 
-		for d in distractors:			
+		for d in distractors:
 			d = d.view(batch_size, 1, -1)
 			d_score = torch.bmm(d, r_transform).squeeze()
 			distractors_scores.append(d_score)
@@ -352,10 +354,10 @@ class Model(nn.Module):
 			rsa_ri = 0
 			topological_sim = 0
 
-		return (torch.mean(loss), 
-			torch.mean(accuracy), 
-			m, 
-			w_counts, 
+		return (torch.mean(loss),
+			torch.mean(accuracy),
+			m,
+			w_counts,
 			torch.mean(entropy),
 			self._count_unique_messages(m) / batch_size,
 			rsa_sr,
