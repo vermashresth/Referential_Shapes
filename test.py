@@ -36,10 +36,10 @@ n_image_features = 2048#4096
 # Default settings
 vocab_size = 10
 max_sentence_length = 5
-shapes_dataset = 'balanced_3_3'
+shapes_dataset = 'uneven_different_targets_row_incomplete_3_3'
 vl_loss_weight = 0.0
 bound_weight = 1.0
-should_train_visual = False
+should_train_visual = True
 cnn_model_file_name = None
 rsa_sampling = 50
 seed = 42

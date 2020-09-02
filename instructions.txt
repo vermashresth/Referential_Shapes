@@ -1,6 +1,7 @@
-test file cmd comment
-copy dataset to shapes
-create empty data/shapes
-test file path of balanced to uneven
-rsa detatch
-model count uniq
+test file cmd comment DONE
+copy dataset to shapes DONE
+create empty data/shapes DONE
+test file path of balanced to uneven TO DO
+Train visual true TO DO
+rsa detatch DONE
+model count uniq DONE
