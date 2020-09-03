@@ -317,7 +317,7 @@ for epoch in range(EPOCHS):
 	noise_accuracy_meters.append(noise_acc_meter)
 
 	print('Epoch {}, average train loss: {}, average val loss: {} \n average accuracy: {}, average val accuracy: {}, average noise accuracy: {} \n'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg), noise_accuracy_meters[e].avg))
+		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg, noise_accuracy_meters[e].avg))
 	if rsa_sampling > 0:
 		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {} \n Topological sim: {} \n'.format(
 			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))

@@ -10,7 +10,7 @@ class ImageDataset():
         print("Image Dataset loading file")
         self.pixels = np.load(file_name)
         data_len = len(self.pixels)
-        sample_ind = np.random.choice(data_len, 1000, replace=false)
+        sample_ind = np.random.choice(data_len, data_len//10, replace=False)
         self.sample = self.pixels[sample_ind]
         print("Loaded npy file")
 
