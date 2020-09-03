@@ -251,7 +251,6 @@ class Model(nn.Module):
 		return c
 
 	def _count_unique_messages(self, m):
-		print(m)
 		return len(np.unique(m.detach().cpu().numpy(), axis=0))
 
 	def forward(self, target, distractors, word_counts, target_onehot_metadata):

@@ -1,6 +1,7 @@
 from utils import AverageMeter, discretize_messages
 import torch
 import torch.nn as nn
+import time
 
 def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	is_training_mode = not optimizer is None
@@ -19,26 +20,30 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	w_counts = word_counts.clone()
 
 	debugging_counter = 0
-
+	idx = 0
+	a1 = time.time()
+	all_data_len = len(data)
 	for d in data:
 		if is_training_mode:
 			optimizer.zero_grad()
-
+		a2 = time.time()
+		if idx%10==0:
+			print("Data loading time", a2-a1)
 		target, distractors, idxs = d
 
 		(loss,
-		acc, 
-		m, 
-		batch_w_counts, 
-		entropy, 
+		acc,
+		m,
+		batch_w_counts,
+		entropy,
 		distinctness,
 		rsa_sr,
 		rsa_si,
 		rsa_ri,
 		topological_sim,
-		lang_entropy) = model(target, 
-								distractors, 
-								w_counts, 
+		lang_entropy) = model(target,
+								distractors,
+								w_counts,
 								onehot_metadata[idxs[:,0]] if onehot_metadata is not None else None)
 
 		loss_meter.update(loss.item())
@@ -63,12 +68,17 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 
 		if debugging and debugging_counter == 5:
 			break
+		a1 = time.time()
+		if idx%10==0:
+			print("Trainign data id ", idx, " / ", all_data_len)
+			print("training time ", a1-a2)
+		idx+=1
 
-	return (loss_meter, 
-		acc_meter, 
-		torch.cat(messages, 0), 
-		torch.cat(indices, 0), 
-		w_counts, 
+	return (loss_meter,
+		acc_meter,
+		torch.cat(messages, 0),
+		torch.cat(indices, 0),
+		w_counts,
 		entropy_meter,
 		distinctness_meter,
 		rsa_sr_meter,

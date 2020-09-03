@@ -1,6 +1,7 @@
 from image_utils import *
 import numpy as np
 from random import shuffle
+from PIL import Image
 
 def get_shape_probs():
 	assert N_SHAPES == 3
@@ -139,13 +140,13 @@ def get_dataset_different_targets_two_figures(dataset_size):
 
 
 		figures_new = []
-		
+
 		# Sort by location
 		figures_orig.sort(key=lambda x: x.r)
 
 		# for i, fig in enumerate(figures_orig):
 		fig = figures_orig[0]
-		
+
 		shape = fig.shape
 		color = fig.color
 		size = fig.size
@@ -178,7 +179,7 @@ def get_dataset_different_targets_two_figures(dataset_size):
 			r2 = r
 		else:
 			r2 = np.random.randint(r + 1, N_CELLS)
-		
+
 		if is_same_col:
 			c2 = c
 		else:
@@ -208,7 +209,7 @@ def get_dataset_different_targets_two_figures(dataset_size):
 
 def calculate_col(fig0, fig1, fig2):
 	is_left_most = fig0.c <= fig1.c and fig0.c <= fig2.c
-			
+
 	if is_left_most:
 		# print("left most")
 		if fig1.c <= fig2.c:
@@ -261,14 +262,14 @@ def get_dataset_different_targets_three_figures(dataset_size):
 		# figures_orig= [Figure(0,0,0,0,0), Figure(0,0,0,5,2), Figure(0,0,0,8,1)]
 
 		figures_new = []
-		
+
 		# Sort by location
 		figures_orig.sort(key=lambda x: x.r * N_CELLS + x.c)
 
 		fig0 = figures_orig[0]
 		fig1 = figures_orig[1]
 		fig2 = figures_orig[2]
-		
+
 		# print(figures_orig)
 
 		is_same_row = fig0.r == fig1.r
@@ -296,7 +297,7 @@ def get_dataset_different_targets_three_figures(dataset_size):
 		else:
 			# print("c1")
 			c1 = calculate_col(fig1, fig0, fig2)
-	
+
 
 		if c1 == c0 and is_same_row:
 			if fig0.c > fig1.c:
@@ -342,7 +343,7 @@ def get_dataset_different_targets_three_figures(dataset_size):
 		figures_new.append(Figure(fig0.shape, fig0.color, fig0.size, r0, c0))
 		figures_new.append(Figure(fig1.shape, fig1.color, fig1.size, r1, c1))
 		figures_new.append(Figure(fig2.shape, fig2.color, fig2.size, r2, c2))
-		
+
 		# print("fig0", r0, c0)
 		# print("fig1", r1, c1)
 		# print("fig2", r2, c2)
@@ -369,7 +370,7 @@ def get_dataset_balanced_incomplete(dataset_size):
 			color = COLOR_RED if np.random.randint(2) == 0 else COLOR_GREEN
 		else: #SHAPE_CIRCLE
 			color = COLOR_BLUE if np.random.randint(2) == 0 else COLOR_RED
-			
+
 		images.append(get_image([Figure(shape, color, size=-1, r=-1, c=-1)]))
 
 	shuffle(images)
@@ -439,9 +440,12 @@ def get_dataset_uneven_different_targets_row_incomplete(dataset_size, shapes_pro
 		# Different row
 		img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
 
+
 		while img1.metadata == img2.metadata:
 			img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
 
+		img1 = img1.resize((128,128), Image.Linear)
+		img2 = img2.resize((128,128), Image.Linear)
 		images.append((img1, img2))
 
 
@@ -540,7 +544,7 @@ def get_dataset_balanced_zero_shot(dataset_size):
 			color = COLOR_BLUE
 		else: #SHAPE_CIRCLE
 			color = COLOR_GREEN
-			
+
 		images.append(get_image([Figure(shape, color, size=-1, r=-1, c=-1)]))
 
 	shuffle(images)
@@ -601,5 +605,3 @@ def get_dataset_different_targets_zero_shot(dataset_size):
 # 	shuffle(images)
 
 # 	return images
-
-

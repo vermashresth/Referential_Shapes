@@ -7,21 +7,29 @@ from PIL import Image
 
 class ImageDataset():
     def __init__(self, file_name, mean=None, std=None):
+        print("Image Dataset loading file")
         self.pixels = np.load(file_name)
+        data_len = len(self.pixels)
+        sample_ind = np.random.choice(data_len, 1000, replace=false)
+        self.sample = self.pixels[sample_ind]
+        print("Loaded npy file")
+
         self.use_different_targets = self.pixels.shape[1] == 2
+        print("Calculating mean")
 
         if mean is None:
-            mean = np.mean(self.pixels, axis=tuple(range(self.pixels.ndim-1)))
-            std = np.std(self.pixels, axis=tuple(range(self.pixels.ndim-1)))
+            mean = np.mean(self.sample, axis=tuple(range(self.sample.ndim-1)))
+            std = np.std(self.sample, axis=tuple(range(self.sample.ndim-1)))
             std[np.nonzero(std == 0.0)] = 1.0  # nan is because of dividing by zero
         self.mean = mean
         self.std = std
 
+        print("found normalizing values")
         # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
-        
+
         self.transforms = torchvision.transforms.Compose([
-            torchvision.transforms.ToPILImage(),
-            torchvision.transforms.Resize((128, 128), Image.LINEAR),
+            # torchvision.transforms.ToPILImage(),
+            # torchvision.transforms.Resize((128, 128), Image.LINEAR),
             torchvision.transforms.ToTensor(),
             torchvision.transforms.Normalize(self.mean, self.std)
         ])
@@ -29,7 +37,7 @@ class ImageDataset():
     def __getitem__(self, indices):
         target_idx = indices[0]
         distractors_idxs = indices[1:]
-        
+
         distractors = []
         for d_idx in distractors_idxs:
             if self.use_different_targets:
@@ -43,7 +51,7 @@ class ImageDataset():
                 distractors.append(self.transforms(self.pixels[d_idx]))
 
         if self.use_different_targets:
-            target = torch.stack((                    
+            target = torch.stack((
                     self.transforms(self.pixels[target_idx, 0, :, :, :]),
                     self.transforms(self.pixels[target_idx, 1, :, :, :])
                 ), dim=0)
@@ -78,7 +86,7 @@ class ImagesSampler(Sampler):
             while t in distractors:
                 distractors = random.sample(range(self.n), self.k)
             arr[1:] = np.array(distractors)
-            
+
             indices.append(arr)
 
         return iter(indices)
@@ -97,10 +105,10 @@ class ImageFeaturesDataset():
         self.std = std
         self.features = (features - self.mean) / (2 * self.std)
 
-    def __getitem__(self, indices):        
+    def __getitem__(self, indices):
         target_idx = indices[0]
         distractors_idxs = indices[1:]
-        
+
         distractors = []
         for d_idx in distractors_idxs:
             distractors.append(self.features[d_idx])
@@ -119,14 +127,14 @@ class ImageFeaturesDatasetZeroShot():
             std[np.nonzero(std == 0.0)] = 1.0  # nan is because of dividing by zero
         self.mean = mean
         self.std = std
-        
+
         self.target_features = (target_features - self.mean) / (2 * self.std)
         self.distractors_features = (distractors_features - self.mean) / (2 * self.std)
 
-    def __getitem__(self, indices):        
+    def __getitem__(self, indices):
         target_idx = indices[0]
         distractors_idxs = indices[1:]
-        
+
         distractors = []
         for d_idx in distractors_idxs:
             distractors.append(self.distractors_features[d_idx])
@@ -159,7 +167,7 @@ class ImagesSamplerZeroShot(Sampler):
             # while t in distractors:
             #     distractors = random.sample(range(self.n), self.k)
             arr[1:] = np.array(distractors)
-            
+
             indices.append(arr)
 
         return iter(indices)

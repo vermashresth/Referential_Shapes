@@ -108,16 +108,18 @@ if rsa_sampling >= 0:
 print()
 #################################################
 
+print("build vocab")
 if not shapes_dataset is None:
 	# Create vocab if there is not one for the desired size already
 	if not does_vocab_exist(vocab_size):
 		build_vocab(vocab_size)
 
+print("loading vocab")
 # Load vocab
 word_to_idx, idx_to_word, bound_idx = load_dictionaries(
 	'shapes' if not shapes_dataset is None else 'mscoco',
 	vocab_size)
-
+print("loading pretrained cnn")
 # Load pretrained CNN if necessary
 if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
 	cnn_model_id = cnn_model_file_name.split('/')[-1]
@@ -141,7 +143,7 @@ if not should_train_visual and not use_symbolic_input and not shapes_dataset is 
 		# Dump the features to then load them
 		features_folder_name = save_features(trained_cnn, shapes_dataset, cnn_model_id)
 
-
+print("crating one hot metadata")
 if not shapes_dataset is None:
 	# Create onehot metadata if not created yet
 	if not does_shapes_onehot_metadata_exist(shapes_dataset):
@@ -153,8 +155,8 @@ else:
 	train_metadata = None
 	valid_metadata = None
 	test_metadata = None
-
-
+print("loaded metadata")
+print("loading data")
 # Load data
 if not shapes_dataset is None:
 	if not use_symbolic_input:
@@ -172,7 +174,7 @@ else:
 			'data/mscoco', BATCH_SIZE, K)
 	print('\nUsing {} image features\n'.format(n_image_features))
 
-
+print("data loaded")
 # Settings
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -184,17 +186,17 @@ current_model_dir = '{}/{}'.format(dumps_dir, model_id)
 if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
 
-
+print("creating model")
 model = Model(n_image_features, vocab_size,
 	EMBEDDING_DIM, HIDDEN_SIZE,
 	bound_idx, max_sentence_length,
 	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
 	use_gpu)
-
+print("model created")
 if use_gpu:
 	model = model.cuda()
-
+print("model moved to gpu")
 optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 es = EarlyStopping(mode="max", patience=10, threshold=0.005, threshold_mode="rel") # Not 30 patience
 
@@ -239,13 +241,13 @@ is_loss_nan = False
 should_evaluate_best = True
 
 train_start_time = time.time()
-
+print("init done, start epochs")
 # Train
 for epoch in range(EPOCHS):
 	epoch_start_time = time.time()
 
 	e = epoch + starting_epoch
-
+	print("train one epoch start")
 	(epoch_loss_meter,
 	epoch_acc_meter,
 	messages,
@@ -258,7 +260,7 @@ for epoch in range(EPOCHS):
 	epoch_rsa_ri_meter,
 	epoch_topological_sim_meter,
 	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging)
-
+	print("done one epoch")
 	if math.isnan(epoch_loss_meter.avg):
 		print("The train loss in NaN. Stop training")
 		is_loss_nan = True

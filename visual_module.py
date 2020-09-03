@@ -9,7 +9,7 @@ import torchvision.models as models
 # 		super().__init__()
 
 # 		self.conv = nn.Conv2D(in_channels=128, out_channels, kernel_size=3, stride=stride, padding=0)
-# 		self.relu = nn.relu()		
+# 		self.relu = nn.relu()
 
 # 	def forward(self, x):
 
@@ -27,17 +27,17 @@ class CNN(nn.Module):
 			nn.ReLU(),
 			nn.Conv2d(n_filters, n_filters, 3, stride=2),
 			nn.BatchNorm2d(n_filters),
-			nn.ReLU(),
-			nn.Conv2d(n_filters, n_filters, 3, stride=2),
-			nn.BatchNorm2d(n_filters),
-			nn.ReLU(),
-			nn.Conv2d(n_filters, n_filters, 3, stride=2),
-			nn.BatchNorm2d(n_filters),
-			nn.ReLU(),
+			nn.ReLU()
+			# nn.Conv2d(n_filters, n_filters, 3, stride=2),
+			# nn.BatchNorm2d(n_filters),
+			# nn.ReLU(),
+			# nn.Conv2d(n_filters, n_filters, 3, stride=2),
+			# nn.BatchNorm2d(n_filters),
+			# nn.ReLU(),
 			)
 
 		self.lin = nn.Sequential(
-			nn.Linear(180, n_out_features),
+			nn.Linear(80, n_out_features),
 			nn.ReLU(),
 			)
 
@@ -50,7 +50,7 @@ class CNN(nn.Module):
 			elif isinstance(m, nn.BatchNorm2d):
 				nn.init.constant_(m.weight, 1)
 				nn.init.constant_(m.bias, 0)
-		
+
 
 	def forward(self, x):
 		batch_size = x.size(0)
@@ -79,9 +79,3 @@ class CNN(nn.Module):
 # 		y = y.view(y.size(0), -1)
 # 		y = self.vgg16.classifier[:5](y)
 # 		return y
-
-
-
-
-
-
