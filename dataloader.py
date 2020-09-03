@@ -18,12 +18,13 @@ def load_images(folder, batch_size, k):
 	train_filename = '{}/train.large.input.npy'.format(folder)
 	valid_filename = '{}/val.input.npy'.format(folder)
 	test_filename = '{}/test.input.npy'.format(folder)
-
+	noise_filename = '{}/noise.input.npy'.format(folder)
 	train_dataset = ImageDataset(train_filename)
 	valid_dataset = ImageDataset(valid_filename, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 	test_dataset = ImageDataset(test_filename, mean=train_dataset.mean, std=train_dataset.std)
+	noise_dataset = ImageDataset(noise_filename, mean=train_dataset.mean, std=train_dataset.std)
 
-	train_data = DataLoader(train_dataset, num_workers=1, pin_memory=True, 
+	train_data = DataLoader(train_dataset, num_workers=1, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
 
 	valid_data = DataLoader(valid_dataset, num_workers=1, pin_memory=True,
@@ -32,7 +33,10 @@ def load_images(folder, batch_size, k):
 	test_data = DataLoader(test_dataset, num_workers=1, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
-	return train_data, valid_data, test_data
+	noise_data = DataLoader(noise_dataset, num_workers=1, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+
+	return train_data, valid_data, test_data, noise_data
 
 
 # This is for loading previously obtained features
@@ -41,18 +45,21 @@ def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
 		train_features = np.load('{}/train.large.onehot_metadata.p'.format(folder)).astype(np.float32)
 		valid_features = np.load('{}/val.onehot_metadata.p'.format(folder)).astype(np.float32)
 		test_features = np.load('{}/test.onehot_metadata.p'.format(folder)).astype(np.float32)
+		test_features = np.load('{}/noise.onehot_metadata.p'.format(folder)).astype(np.float32)
 	else:
 		train_features = np.load('{}/train_features.npy'.format(folder))
 		valid_features = np.load('{}/valid_features.npy'.format(folder))
 		test_features = np.load('{}/test_features.npy'.format(folder))
+		noise_features = np.load('{}/noise_features.npy'.format(folder))
 
 	n_image_features = valid_features.shape[-1] # 4096
 
 	train_dataset = ImageFeaturesDataset(train_features)
 	valid_dataset = ImageFeaturesDataset(valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 	test_dataset = ImageFeaturesDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
+	noise_dataset = ImageFeaturesDataset(noise_features, mean=train_dataset.mean, std=train_dataset.std)
 
-	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
+	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
 
 	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
@@ -61,7 +68,10 @@ def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
 	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
-	return n_image_features, train_data, valid_data, test_data
+	noise_data = DataLoader(tnoise_dataset, num_workers=8, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+
+	return n_image_features, train_data, valid_data, test_data, noise_data
 
 
 # This is for loading previously obtained features
@@ -84,7 +94,7 @@ def load_pretrained_features_zero_shot(target_folder, distractors_folder, batch_
 	valid_dataset = ImageFeaturesDatasetZeroShot(target_valid_features, distractors_valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 	test_dataset = ImageFeaturesDatasetZeroShot(target_test_features, distractors_test_features, mean=train_dataset.mean, std=train_dataset.std)
 
-	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True, 
+	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSamplerZeroShot(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
 
 	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,

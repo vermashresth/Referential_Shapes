@@ -443,9 +443,6 @@ def get_dataset_uneven_different_targets_row_incomplete(dataset_size, shapes_pro
 
 		while img1.metadata == img2.metadata:
 			img2 = get_image([Figure(shape, color, size, r=-1, c=column)])
-
-		img1 = img1.resize((128,128), Image.Linear)
-		img2 = img2.resize((128,128), Image.Linear)
 		images.append((img1, img2))
 
 

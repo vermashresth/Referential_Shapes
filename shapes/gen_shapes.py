@@ -22,7 +22,7 @@ if __name__ == "__main__":
     if debugging:
         print('=============== Debugging ===================================')
 
-    folder_name = 'uneven_different_targets_row_incomplete_{}_{}'.format(N_CELLS, N_CELLS)
+    folder_name = 'shapes/uneven_different_targets_row_incomplete_{}_{}'.format(N_CELLS, N_CELLS)
     f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
     #get_dataset_balanced_zero_shot
     #get_dataset_uneven_incomplete#get_dataset_different_targets_incomplete#get_dataset_uneven_different_targets #get_dataset_balanced_incomplete #get_dataset_uneven #get_dataset_different_targets_three_figures#get_dataset_different_targets
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     val_size = 8279 if not debugging else 10
     test_size = 40504 if not debugging else 10
 
-    is_uneven = (f_generate_dataset is get_dataset_uneven 
+    is_uneven = (f_generate_dataset is get_dataset_uneven
                 or f_generate_dataset is get_dataset_uneven_different_targets
                 or f_generate_dataset is get_dataset_uneven_incomplete
                 or f_generate_dataset is get_dataset_uneven_different_targets_row
@@ -43,7 +43,7 @@ if __name__ == "__main__":
                 or f_generate_dataset is get_dataset_uneven_different_targets_row_incomplete)
     if is_uneven:
         train_data, val_data, test_data, shapes_probs, colors_probs = get_datasets(train_size, val_size, test_size, f_generate_dataset, is_uneven)
-    else:    
+    else:
         train_data, val_data, test_data = get_datasets(train_size, val_size, test_size, f_generate_dataset, is_uneven)
 
     has_tuples = type(train_data[0]) is tuple
@@ -85,6 +85,16 @@ if __name__ == "__main__":
             set_metadata = [(image[0].metadata, image[1].metadata) for image in set_data]
 
         pickle.dump(set_metadata, open('{}/{}.metadata.p'.format(folder_name, set_name), 'wb'))
+
+        if set_name=='val':
+            random = np.random.normal(0, 1, size=set_inputs.shape)
+            random[random>1] = 1
+            random[random<-1] = -1
+            noise_inputs = np.array((random + 1)/2*255, dtype=np.uint8)
+
+            np.save("{}/{}.input".format(folder_name, 'noise'), noise_inputs)
+
+            pickle.dump(set_metadata, open('{}/{}.metadata.p'.format(folder_name, 'noise'), 'wb'))
 
     if is_uneven:
         with open('{}/probs.txt'.format(folder_name), 'w') as f:

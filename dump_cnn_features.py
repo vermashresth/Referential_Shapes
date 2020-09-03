@@ -52,7 +52,7 @@ class ShapesDataset(data.Dataset):
 	def __len__(self):
 		return self.data.shape[0]
 
-def cnn_fwd(model, x):	
+def cnn_fwd(model, x):
 	y = model(x)
 	y = y.detach()
 
@@ -71,7 +71,7 @@ def get_features(model, dataloader, output_data_folder, file_id):
 				n_tuples = x.shape[1]
 			else:
 				n_tuples = 0
-		
+
 
 		if n_tuples == 0:
 			y = cnn_fwd(model, x)
@@ -82,7 +82,7 @@ def get_features(model, dataloader, output_data_folder, file_id):
 				x_t = x[:,j,:,:,:]
 				y_t = cnn_fwd(model, x_t)
 				ys.append(y_t)
-			
+
 			# Here we need to combine 1st elem with 1st elem, etc in the batch
 
 			y = np.asarray(ys)
@@ -115,10 +115,12 @@ def save_features(cnn, folder, folder_id):
 	train_dataset = ShapesDataset('shapes/{}/train.large.input.npy'.format(folder))
 	val_dataset = ShapesDataset('shapes/{}/val.input.npy'.format(folder), mean=train_dataset.mean, std=train_dataset.std)
 	test_dataset = ShapesDataset('shapes/{}/test.input.npy'.format(folder), mean=train_dataset.mean, std=train_dataset.std)
+	noise_dataset = ShapesDataset('shapes/{}/noise.input.npy'.format(folder), mean=train_dataset.mean, std=train_dataset.std)
 
 	train_dataloader = DataLoader(train_dataset, num_workers=8, batch_size=batch_size)
 	val_dataloader = DataLoader(val_dataset, num_workers=8, batch_size=batch_size)
 	test_dataloader = DataLoader(test_dataset, num_workers=8, batch_size=batch_size)
+	noise_dataloader = DataLoader(noise_dataset, num_workers=8, batch_size=batch_size)
 
 	output_features_folder = 'data/shapes/{}_{}'.format(folder, folder_id)
 	temp_features_folder = 'data/temp{}'.format(folder_id)
@@ -135,11 +137,13 @@ def save_features(cnn, folder, folder_id):
 	get_features(cnn, train_dataloader, temp_features_folder, 'train')
 	get_features(cnn, val_dataloader, temp_features_folder, 'valid')
 	get_features(cnn, test_dataloader, temp_features_folder, 'test')
+	get_features(cnn, noise_dataloader, temp_features_folder, 'noise')
 
 	# Stitch into one file
 	stitch_files(temp_features_folder, output_features_folder, 'train')
 	stitch_files(temp_features_folder, output_features_folder, 'valid')
 	stitch_files(temp_features_folder, output_features_folder, 'test')
+	stitch_files(temp_features_folder, output_features_folder, 'noise')
 
 	# Remove temp folder
 	for f in os.listdir(temp_features_folder):

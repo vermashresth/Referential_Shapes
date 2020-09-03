@@ -15,7 +15,7 @@ def one_hot(a):
     return out
 
 def create_shapes_onehot_metadata(shapes_dataset):
-    set_names = ['train.large', 'val', 'test']
+    set_names = ['train.large', 'val', 'test', 'noise']
 
     for set_name in set_names:
         meta = pickle.load(
@@ -46,5 +46,6 @@ def load_shapes_onehot_metadata(shapes_dataset):
     train_metadata = pickle.load(open('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     val_metadata = pickle.load(open('shapes/{}/val.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     test_metadata = pickle.load(open('shapes/{}/test.onehot_metadata.p'.format(shapes_dataset), 'rb'))
+    noise_metadata = pickle.load(open('shapes/{}/noise.onehot_metadata.p'.format(shapes_dataset), 'rb'))
 
-    return train_metadata, val_metadata, test_metadata
+    return train_metadata, val_metadata, test_metadata, noise_metadata

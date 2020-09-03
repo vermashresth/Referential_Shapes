@@ -150,27 +150,28 @@ if not shapes_dataset is None:
 		create_shapes_onehot_metadata(shapes_dataset)
 
 	# Load metadata
-	train_metadata, valid_metadata, test_metadata = load_shapes_onehot_metadata(shapes_dataset)
+	train_metadata, valid_metadata, test_metadata, noise_metadata = load_shapes_onehot_metadata(shapes_dataset)
 else:
 	train_metadata = None
 	valid_metadata = None
 	test_metadata = None
+	noise_metadata = None
 print("loaded metadata")
 print("loading data")
 # Load data
 if not shapes_dataset is None:
 	if not use_symbolic_input:
 		if should_train_visual:
-			train_data, valid_data, test_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+			train_data, valid_data, test_data, noise_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
 		else:
-			n_pretrained_image_features, train_data, valid_data, test_data = load_pretrained_features(
+			n_pretrained_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
 				features_folder_name, BATCH_SIZE, K)
 			assert n_pretrained_image_features == n_image_features
 	else:
-		n_image_features, train_data, valid_data, test_data = load_pretrained_features(
+		n_image_features, train_data, valid_data, test_data, noise_data= load_pretrained_features(
 			'shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, use_symbolic=True)
 else:
-	n_image_features, train_data, valid_data, test_data = load_pretrained_features(
+	n_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
 			'data/mscoco', BATCH_SIZE, K)
 	print('\nUsing {} image features\n'.format(n_image_features))
 
@@ -206,6 +207,7 @@ eval_losses_meters = []
 
 accuracy_meters = []
 eval_accuracy_meters = []
+noise_accuracy_meters = []
 
 entropy_meters = []
 eval_entropy_meters = []
@@ -300,12 +302,26 @@ for epoch in range(EPOCHS):
 	eval_topological_sim_meters.append(eval_topological_sim_meter)
 	eval_language_entropy_meters.append(eval_lang_entropy_meter)
 
-	print('Epoch {}, average train loss: {}, average val loss: {}, average accuracy: {}, average val accuracy: {}'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg))
+	(_,
+	noise_acc_meter,
+	_,
+	_,
+	_,
+	_,
+	_,
+	_,
+	_,
+	_,
+	_,
+	_) = evaluate(model, noise_data, eval_word_counts, noise_metadata, debugging)
+	noise_accuracy_meters.append(noise_acc_meter)
+
+	print('Epoch {}, average train loss: {}, average val loss: {} \n average accuracy: {}, average val accuracy: {}, average noise accuracy: {} \n'.format(
+		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg), noise_accuracy_meters[e].avg))
 	if rsa_sampling > 0:
-		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {}, Topological sim: {}'.format(
+		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {} \n Topological sim: {} \n'.format(
 			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
-		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}, Eval Topological sim: {}'.format(
+		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
 			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))
