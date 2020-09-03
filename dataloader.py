@@ -68,7 +68,7 @@ def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
 	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
-	noise_data = DataLoader(tnoise_dataset, num_workers=8, pin_memory=True,
+	noise_data = DataLoader(noise_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	return n_image_features, train_data, valid_data, test_data, noise_data

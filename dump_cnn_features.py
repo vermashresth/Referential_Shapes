@@ -27,8 +27,8 @@ class ShapesDataset(data.Dataset):
 		self.std = std
 
 		self.transforms = torchvision.transforms.Compose([
-			torchvision.transforms.ToPILImage(),
-			torchvision.transforms.Resize((128, 128), Image.LINEAR),
+			# torchvision.transforms.ToPILImage(),
+			# torchvision.transforms.Resize((128, 128), Image.LINEAR),
 			torchvision.transforms.ToTensor(),
 			torchvision.transforms.Normalize(self.mean, self.std)
 			])
