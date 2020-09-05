@@ -50,12 +50,12 @@ use_symbolic_input = False
 noise_strength = 0
 
 cmd_parser = argparse.ArgumentParser()
-cmd_parser.add_argument('seed', type=int, default=seed)
-cmd_parser.add_argument('vocab_size', type=int, default=vocab_size)
-cmd_parser.add_argument('max_sentence_length', type=int, default=max_sentence_length)
-cmd_parser.add_argument('vl_loss_weight', type=float, default=vl_loss_weight)
-cmd_parser.add_argument('bound_weight', type=float, default=bound_weight)
-cmd_parser.add_argument('noise_strength', type=int, default=noise_strength)
+cmd_parser.add_argument('--seed', type=int, default=seed)
+cmd_parser.add_argument('--vocab_size', type=int, default=vocab_size)
+cmd_parser.add_argument('--max_sentence_length', type=int, default=max_sentence_length)
+cmd_parser.add_argument('--vl_loss_weight', type=float, default=vl_loss_weight)
+cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
+cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--shapes_dataset', type=str, default=shapes_dataset)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 
@@ -344,10 +344,9 @@ for epoch in range(EPOCHS):
 		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
 			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 
-	wandb.log({'Epoch':e, 'average train loss':losses_meters[e].avg, 'average val loss':eval_losses_meters[e].avg,
-			   'average accuracy':accuracy_meters[e].avg, 'average val accuracy':eval_accuracy_meters[e].avg, 'average noise accuracy':noise_accuracy_meters[e].avg})
-	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg, 'Topological sim':epoch_topological_sim_meter.avg)
-	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg, 'Topological sim':eval_topological_sim_meter.avg)
+	wandb.log({'Epoch':e, 'average train loss': losses_meters[e].avg, 'average val loss': eval_losses_meters[e].avg, 'average accuracy': accuracy_meters[e].avg, 'average val accuracy': eval_accuracy_meters[e].avg, 'average noise accuracy': noise_accuracy_meters[e].avg})
+	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg, 'Topological sim':epoch_topological_sim_meter.avg})
+	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg, 'Topological sim':eval_topological_sim_meter.avg})
 
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))
