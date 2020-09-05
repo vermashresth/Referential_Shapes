@@ -7,13 +7,21 @@ import pickle
 from generate_dataset import *
 from image_utils import *
 
+import argparse
+
 N_TRAIN_TINY    = 1
 N_TRAIN_SMALL = 10
 N_TRAIN_MED     = 100
 N_TRAIN_LARGE = 1000
 N_TRAIN_ALL     = N_TRAIN_MED
 
+noise_strength = 0
 
+cmd_parser = argparse.ArgumentParser()
+cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
+cmd_args = cmd_parser.parse_args()
+
+noise_strength = cmd_args.noise_strength
 
 if __name__ == "__main__":
 
@@ -22,7 +30,7 @@ if __name__ == "__main__":
     if debugging:
         print('=============== Debugging ===================================')
 
-    folder_name = 'shapes/uneven_different_targets_row_incomplete_{}_{}'.format(N_CELLS, N_CELLS)
+    folder_name = 'shapes/uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
     f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
     #get_dataset_balanced_zero_shot
     #get_dataset_uneven_incomplete#get_dataset_different_targets_incomplete#get_dataset_uneven_different_targets #get_dataset_balanced_incomplete #get_dataset_uneven #get_dataset_different_targets_three_figures#get_dataset_different_targets
@@ -76,6 +84,15 @@ if __name__ == "__main__":
             for i in range(n_rows):
                 for j in range(tuple_len):
                     set_inputs[i][j] = set_data[i][j].data[:,:,0:3]
+
+        random = np.random.normal(0, 1, size=set_inputs.shape)
+        random[random>1] = 1
+        random[random<-1] = -1
+        random = np.array((random + 1)/2*noise_strength, dtype=np.uint8)
+        set_inputs = np.array(set_inputs, dtype = np.uint16)
+        set_inputs = set_inputs + random
+        set_inputs[set_inputs>255] = 255
+        set_inputs = np.array(set_inputs, dtype = np.uint8)
 
         np.save("{}/{}.input".format(folder_name, set_name), set_inputs)
 

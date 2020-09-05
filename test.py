@@ -19,6 +19,9 @@ from visual_module import CNN
 from dump_cnn_features import save_features
 import argparse
 
+import wandb
+wandb.init(project="referential-shapes")
+
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
 should_dump = True#not debugging
@@ -36,7 +39,7 @@ n_image_features = 2048#4096
 # Default settings
 vocab_size = 10
 max_sentence_length = 5
-shapes_dataset = 'uneven_different_targets_row_incomplete_3_3'
+shapes_dataset = 'uneven_different_targets_row_incomplete_noise_0_3_3'
 vl_loss_weight = 0.0
 bound_weight = 1.0
 should_train_visual = True
@@ -44,37 +47,51 @@ cnn_model_file_name = None
 rsa_sampling = 50
 seed = 42
 use_symbolic_input = False
-
+noise_strength = 0
 
 cmd_parser = argparse.ArgumentParser()
-# cmd_parser.add_argument('seed', type=int)
-# cmd_parser.add_argument('vocab_size', type=int)
-# cmd_parser.add_argument('max_sentence_length', type=int)
-# cmd_parser.add_argument('vl_loss_weight', type=float)
-# cmd_parser.add_argument('bound_weight', type=float)
-# cmd_parser.add_argument('--shapes_dataset')
-# cmd_parser.add_argument('--use_symbolic_input', action='store_true')
-#
-# excl_group = cmd_parser.add_mutually_exclusive_group()
-# excl_group.add_argument('--should_train_visual', action='store_true')
-# excl_group.add_argument('--cnn_model_file_name')
-#
-# cmd_parser.add_argument('rsa_sampling', type=int)
+cmd_parser.add_argument('seed', type=int, default=seed)
+cmd_parser.add_argument('vocab_size', type=int, default=vocab_size)
+cmd_parser.add_argument('max_sentence_length', type=int, default=max_sentence_length)
+cmd_parser.add_argument('vl_loss_weight', type=float, default=vl_loss_weight)
+cmd_parser.add_argument('bound_weight', type=float, default=bound_weight)
+cmd_parser.add_argument('noise_strength', type=int, default=noise_strength)
+cmd_parser.add_argument('--shapes_dataset', type=str, default=shapes_dataset)
+cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
+
+excl_group = cmd_parser.add_mutually_exclusive_group()
+excl_group.add_argument('--should_train_visual', action='store_true', default=should_train_visual)
+excl_group.add_argument('--cnn_model_file_name', type=str, default=cnn_model_file_name)
+
+cmd_parser.add_argument('rsa_sampling', type=int, default=rsa_sampling)
 
 cmd_args = cmd_parser.parse_args()
 
 # Overwrite default settings if given in command line
-if len(sys.argv) > 1:
-	seed = cmd_args.seed #int(sys.argv[1])
-	vocab_size = cmd_args.vocab_size #int(sys.argv[2])
-	max_sentence_length = cmd_args.max_sentence_length #int(sys.argv[3])
-	shapes_dataset = cmd_args.shapes_dataset #sys.argv[4]
-	vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
-	bound_weight = cmd_args.bound_weight #float(sys.argv[6])
-	use_symbolic_input = cmd_args.use_symbolic_input
-	should_train_visual = cmd_args.should_train_visual
-	cnn_model_file_name = cmd_args.cnn_model_file_name
-	rsa_sampling = cmd_args.rsa_sampling
+# if len(sys.argv) > 1:
+seed = cmd_args.seed #int(sys.argv[1])
+vocab_size = cmd_args.vocab_size #int(sys.argv[2])
+max_sentence_length = cmd_args.max_sentence_length #int(sys.argv[3])
+shapes_dataset = cmd_args.shapes_dataset #sys.argv[4]
+vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
+bound_weight = cmd_args.bound_weight #float(sys.argv[6])
+use_symbolic_input = cmd_args.use_symbolic_input
+should_train_visual = cmd_args.should_train_visual
+cnn_model_file_name = cmd_args.cnn_model_file_name
+rsa_sampling = cmd_args.rsa_sampling
+noise_strength = cmd_args.noise_strength
+
+wandb.config.seed = seed #int(sys.argv[1])
+wandb.config.vocab_size = vocab_size #int(sys.argv[2])
+wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
+wandb.config.shapes_dataset = shapes_dataset #sys.argv[4]
+wandb.config.vl_loss_weight = vl_loss_weight #float(sys.argv[5])
+wandb.config.bound_weight = bound_weight #float(sys.argv[6])
+wandb.config.use_symbolic_input = use_symbolic_input
+wandb.config.should_train_visual = should_train_visual
+wandb.config.cnn_model_file_name = cnn_model_file_name
+wandb.config.rsa_sampling = rsa_sampling
+wandb.config.noise_strength = noise_strength
 
 # Symbolic input or mscoco never need to train visual features
 if not use_symbolic_input and not shapes_dataset is None:
@@ -194,6 +211,9 @@ model = Model(n_image_features, vocab_size,
 	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
 	use_gpu)
+
+wandb.watch(model)
+
 print("model created")
 if use_gpu:
 	model = model.cuda()
@@ -323,6 +343,12 @@ for epoch in range(EPOCHS):
 			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
 		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
 			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
+
+	wandb.log({'Epoch':e, 'average train loss':losses_meters[e].avg, 'average val loss':eval_losses_meters[e].avg,
+			   'average accuracy':accuracy_meters[e].avg, 'average val accuracy':eval_accuracy_meters[e].avg, 'average noise accuracy':noise_accuracy_meters[e].avg})
+	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg, 'Topological sim':epoch_topological_sim_meter.avg)
+	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg, 'Topological sim':eval_topological_sim_meter.avg)
+
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))
 
@@ -331,6 +357,7 @@ for epoch in range(EPOCHS):
 	if should_dump:
 		# Save model every epoch
 		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+		torch.save(model.state_dict(), '{}/{}_{}_model'.format(wandb.run.dir, model_id, e))
 
 		# Dump messages every epoch
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
