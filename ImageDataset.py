@@ -7,15 +7,15 @@ from PIL import Image
 
 class ImageDataset():
     def __init__(self, file_name, mean=None, std=None):
-        print("Image Dataset loading file")
+        # print("Image Dataset loading file")
         self.pixels = np.load(file_name)
         data_len = len(self.pixels)
         sample_ind = np.random.choice(data_len, data_len//10, replace=False)
         self.sample = self.pixels[sample_ind]
-        print("Loaded npy file")
+        # print("Loaded npy file")
 
         self.use_different_targets = self.pixels.shape[1] == 2
-        print("Calculating mean")
+        # print("Calculating mean")
 
         if mean is None:
             mean = np.mean(self.sample, axis=tuple(range(self.sample.ndim-1)))
@@ -24,7 +24,7 @@ class ImageDataset():
         self.mean = mean
         self.std = std
 
-        print("found normalizing values")
+        # print("found normalizing values")
         # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
 
         self.transforms = torchvision.transforms.Compose([

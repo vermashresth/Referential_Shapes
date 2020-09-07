@@ -26,23 +26,23 @@ noise_strength = cmd_args.noise_strength
 dataset_type = cmd_args.dataset_type
 
 if dataset_type == 0: # Even, same pos
-	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
-	dataset_name = 'Even-samepos'
+    shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+    dataset_name = 'even-samepos'
     f_generate_dataset = get_dataset_balanced_incomplete
 elif dataset_type == 1: # Even, diff pos
-	shapes_dataset = 'get_dataset_different_targets_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
-	dataset_name = 'Even-diffpos'
+    shapes_dataset = 'get_dataset_different_targets_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+    dataset_name = 'even-diffpos'
     f_generate_dataset = get_dataset_different_targets_incomplete
 elif dataset_type == 2: # Uneven, same pos
-	shapes_dataset = 'get_dataset_uneven_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
-	dataset_name = 'Uneven-samepos'
+    shapes_dataset = 'get_dataset_uneven_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+    dataset_name = 'uneven-samepos'
     f_generate_dataset = get_dataset_uneven_incomplete
 elif dataset_type == 3: # Uneven,  diff pos
-	shapes_dataset = 'get_dataset_uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
-	dataset_name = 'Uneven-diffpos'
+    shapes_dataset = 'get_dataset_uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+    dataset_name = 'uneven-diffpos'
     f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
 elif dataset_type == 4: #
-	print("Not Supported type")
+    print("Not Supported type")
 
 if __name__ == "__main__":
 

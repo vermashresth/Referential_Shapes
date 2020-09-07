@@ -79,22 +79,23 @@ vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
 bound_weight = cmd_args.bound_weight #float(sys.argv[6])
 use_symbolic_input = cmd_args.use_symbolic_input
 should_train_visual = cmd_args.should_train_visual
-# cnn_model_file_name = cmd_args.cnn_model_file_name
+cnn_model_file_name = cmd_args.cnn_model_file_name
+use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
-	dataset_name = 'Even-samepos'
+	dataset_name = 'even-samepos'
 elif dataset_type == 1: # Even, diff pos
 	shapes_dataset = 'get_dataset_different_targets_incomplete_noise_{}_3_3'.format(noise_strength)
-	dataset_name = 'Even-diffpos'
+	dataset_name = 'even-diffpos'
 elif dataset_type == 2: # Uneven, same pos
 	shapes_dataset = 'get_dataset_uneven_incomplete_noise_{}_3_3'.format(noise_strength)
-	dataset_name = 'Uneven-samepos'
+	dataset_name = 'uneven-samepos'
 elif dataset_type == 3: # Uneven,  diff pos
 	shapes_dataset = 'get_dataset_uneven_different_targets_row_incomplete_noise_{}_3_3'.format(noise_strength)
-	dataset_name = 'Uneven-diffpos'
+	dataset_name = 'uneven-diffpos'
 elif dataset_type == 4: #
 	print("Not Supported type")
 
@@ -111,7 +112,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed_{}_K_{}_repr_{}_data_{}_noise_{}'.format(seed, K, repr, dataset_name, noise_strength)
+model_id = 'seed-{}_K-{}_repr-{}_data-{}_noise-{}'.format(seed, K, repr, dataset_name, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -126,13 +127,15 @@ if not should_train_visual:
 	if use_random_model:
 		cnn_model_file_name = './dumps/random/random_model'
 	else:
-		cnn_model_file_name = '{}/{}_{}_model'.format(current_model_dir, model_id, EPOCHS - 1)
+		to_load_model_id = model_id.replace('pre', 'train')
+		to_load_current_model_dir = current_model_dir.replace('pre', 'train')
+		cnn_model_file_name = '{}/{}_{}_model'.format(to_load_current_model_dir, to_load_model_id, EPOCHS - 1)
 
 starting_epoch = 0
 
 wandb.init(project="referential-shapes", name=model_id)
 
-wandb.config.K = seed #int(sys.argv[1])
+wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
 wandb.config.vocab_size = vocab_size #int(sys.argv[2])
 wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
@@ -142,6 +145,7 @@ wandb.config.bound_weight = bound_weight #float(sys.argv[6])
 wandb.config.use_symbolic_input = use_symbolic_input
 wandb.config.should_train_visual = should_train_visual
 wandb.config.cnn_model_file_name = cnn_model_file_name
+wandb.config.use_random_model = use_random_model
 wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
 

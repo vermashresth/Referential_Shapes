@@ -28,8 +28,8 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		if is_training_mode:
 			optimizer.zero_grad()
 		a2 = time.time()
-		if idx%log_freq==0:
-			print("Data loading time", a2-a1)
+		# if idx%log_freq==0:
+		# 	print("Data loading time", a2-a1)
 		target, distractors, idxs = d
 
 		(loss,
@@ -70,9 +70,9 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		if debugging and debugging_counter == 5:
 			break
 		a1 = time.time()
-		if idx%log_freq==0:
-			print("Trainign data id ", idx, " / ", all_data_len)
-			print("training time ", a1-a2)
+		# if idx%log_freq==0:
+		# 	print("Trainign data id ", idx, " / ", all_data_len)
+		# 	print("training time ", a1-a2)
 		idx+=1
 
 	return (loss_meter,
