@@ -43,6 +43,8 @@ model_file_name = None
 # cnn_model_file_name = None
 rsa_sampling = -1
 seed = 42
+target_shapes_dataset = None
+distractors_shapes_dataset = None
 
 # Overwrite default settings if given in command line
 if len(sys.argv) > 1:
@@ -137,9 +139,9 @@ if should_train_visual:
 	_train_data, _valid_data, _test_data = load_images('shapes/{}'.format(target_shapes_dataset), BATCH_SIZE, K)
 else:
 	n_pretrained_image_features, _t, _v, test_data = load_pretrained_features_zero_shot(
-		target_features_folder_name, 
+		target_features_folder_name,
 		distractors_features_folder_name,
-		BATCH_SIZE, 
+		BATCH_SIZE,
 		K)
 	assert n_pretrained_image_features == n_image_features
 
@@ -163,9 +165,9 @@ if should_dump and not os.path.exists(current_model_dir):
 
 
 model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE, 
-	bound_idx, max_sentence_length, 
-	vl_loss_weight, bound_weight, 
+	EMBEDDING_DIM, HIDDEN_SIZE,
+	bound_idx, max_sentence_length,
+	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
 	use_gpu)
 
@@ -182,11 +184,11 @@ test_word_counts = torch.zeros([vocab_size])
 if use_gpu:
 	test_word_counts = test_word_counts.cuda()
 
-(test_loss_meter, 
-test_acc_meter, 
-test_messages, 
+(test_loss_meter,
+test_acc_meter,
+test_messages,
 test_indices,
-_w_counts, 
+_w_counts,
 test_entropy_meter,
 test_distinctness_meter,
 test_rsa_sr_meter,
@@ -212,7 +214,7 @@ if should_dump:
 	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, dump_id, best_epoch), 'wb'))
 
 	if should_dump_indices:
-		pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, dump_id, best_epoch), 'wb'))			
+		pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, dump_id, best_epoch), 'wb'))
 
 	if should_covert_to_words:
 		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(dump_id, best_epoch))

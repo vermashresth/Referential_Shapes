@@ -20,7 +20,6 @@ from dump_cnn_features import save_features
 import argparse
 
 import wandb
-wandb.init(project="referential-shapes")
 
 use_gpu = torch.cuda.is_available()
 debugging = not use_gpu
@@ -39,9 +38,10 @@ n_image_features = 2048#4096
 # Default settings
 vocab_size = 10
 max_sentence_length = 5
-shapes_dataset = 'uneven_different_targets_row_incomplete_noise_0_3_3'
+dataset_type = 0
 vl_loss_weight = 0.0
 bound_weight = 1.0
+use_random_model = 0
 should_train_visual = 1
 cnn_model_file_name = None
 rsa_sampling = 50
@@ -57,11 +57,12 @@ cmd_parser.add_argument('--max_sentence_length', type=int, default=max_sentence_
 cmd_parser.add_argument('--vl_loss_weight', type=float, default=vl_loss_weight)
 cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
-cmd_parser.add_argument('--shapes_dataset', type=str, default=shapes_dataset)
+cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 
+cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
-cmd_parser.add_argument('--cnn_model_file_name', type=str, default=cnn_model_file_name)
+# cmd_parser.add_argument('--cnn_model_file_name', type=str, default=cnn_model_file_name)
 
 cmd_parser.add_argument('--rsa_sampling', type=int, default=rsa_sampling)
 
@@ -73,20 +74,69 @@ K = cmd_args.K #int(sys.argv[1])
 seed = cmd_args.seed #int(sys.argv[1])
 vocab_size = cmd_args.vocab_size #int(sys.argv[2])
 max_sentence_length = cmd_args.max_sentence_length #int(sys.argv[3])
-shapes_dataset = cmd_args.shapes_dataset #sys.argv[4]
+dataset_type = cmd_args.dataset_type #sys.argv[4]
 vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
 bound_weight = cmd_args.bound_weight #float(sys.argv[6])
 use_symbolic_input = cmd_args.use_symbolic_input
 should_train_visual = cmd_args.should_train_visual
-cnn_model_file_name = cmd_args.cnn_model_file_name
+# cnn_model_file_name = cmd_args.cnn_model_file_name
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
+
+if dataset_type == 0: # Even, same pos
+	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
+	dataset_name = 'Even-samepos'
+elif dataset_type == 1: # Even, diff pos
+	shapes_dataset = 'get_dataset_different_targets_incomplete_noise_{}_3_3'.format(noise_strength)
+	dataset_name = 'Even-diffpos'
+elif dataset_type == 2: # Uneven, same pos
+	shapes_dataset = 'get_dataset_uneven_incomplete_noise_{}_3_3'.format(noise_strength)
+	dataset_name = 'Uneven-samepos'
+elif dataset_type == 3: # Uneven,  diff pos
+	shapes_dataset = 'get_dataset_uneven_different_targets_row_incomplete_noise_{}_3_3'.format(noise_strength)
+	dataset_name = 'Uneven-diffpos'
+elif dataset_type == 4: #
+	print("Not Supported type")
+
+# Symbolic input or mscoco never need to train visual features
+# if not use_symbolic_input and not shapes_dataset is None:
+# 	assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
+
+# Get model id using a timestamp
+if should_train_visual:
+	repr = 'train'
+else:
+	if use_random_model:
+		repr = 'random'
+	else:
+		repr = 'pre'
+
+model_id = 'seed_{}_K_{}_repr_{}_data_{}_noise_{}'.format(seed, K, repr, dataset_name, noise_strength)
+
+dumps_dir = './dumps'
+if should_dump and not os.path.exists(dumps_dir):
+	os.mkdir(dumps_dir)
+
+current_model_dir = '{}/{}'.format(dumps_dir, model_id)
+
+if should_dump and not os.path.exists(current_model_dir):
+	os.mkdir(current_model_dir)
+
+if not should_train_visual:
+	if use_random_model:
+		cnn_model_file_name = './dumps/random/random_model'
+	else:
+		cnn_model_file_name = '{}/{}_{}_model'.format(current_model_dir, model_id, EPOCHS - 1)
+
+starting_epoch = 0
+
+wandb.init(project="referential-shapes", name=model_id)
 
 wandb.config.K = seed #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
 wandb.config.vocab_size = vocab_size #int(sys.argv[2])
 wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
-wandb.config.shapes_dataset = shapes_dataset #sys.argv[4]
+wandb.config.dataset_name = dataset_name #sys.argv[4]
 wandb.config.vl_loss_weight = vl_loss_weight #float(sys.argv[5])
 wandb.config.bound_weight = bound_weight #float(sys.argv[6])
 wandb.config.use_symbolic_input = use_symbolic_input
@@ -94,14 +144,6 @@ wandb.config.should_train_visual = should_train_visual
 wandb.config.cnn_model_file_name = cnn_model_file_name
 wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
-
-# Symbolic input or mscoco never need to train visual features
-if not use_symbolic_input and not shapes_dataset is None:
-	assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
-
-# Get model id using a timestamp
-model_id = '{:%m%d%H%M%S%f}'.format(datetime.now())
-starting_epoch = 0
 
 
 ################# Print info ####################
@@ -196,15 +238,6 @@ else:
 
 print("data loaded")
 # Settings
-dumps_dir = './dumps'
-if should_dump and not os.path.exists(dumps_dir):
-	os.mkdir(dumps_dir)
-
-
-current_model_dir = '{}/{}'.format(dumps_dir, model_id)
-
-if should_dump and not os.path.exists(current_model_dir):
-	os.mkdir(current_model_dir)
 
 print("creating model")
 model = Model(n_image_features, vocab_size,
@@ -262,7 +295,7 @@ if use_gpu:
 	eval_word_counts = eval_word_counts.cuda()
 
 is_loss_nan = False
-should_evaluate_best = True
+should_evaluate_best = False
 
 train_start_time = time.time()
 print("init done, start epochs")

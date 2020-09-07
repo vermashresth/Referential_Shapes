@@ -16,12 +16,33 @@ N_TRAIN_LARGE = 1000
 N_TRAIN_ALL     = N_TRAIN_MED
 
 noise_strength = 0
-
+dataset_type = 0
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
+cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_args = cmd_parser.parse_args()
 
 noise_strength = cmd_args.noise_strength
+dataset_type = cmd_args.dataset_type
+
+if dataset_type == 0: # Even, same pos
+	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+	dataset_name = 'Even-samepos'
+    f_generate_dataset = get_dataset_balanced_incomplete
+elif dataset_type == 1: # Even, diff pos
+	shapes_dataset = 'get_dataset_different_targets_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+	dataset_name = 'Even-diffpos'
+    f_generate_dataset = get_dataset_different_targets_incomplete
+elif dataset_type == 2: # Uneven, same pos
+	shapes_dataset = 'get_dataset_uneven_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+	dataset_name = 'Uneven-samepos'
+    f_generate_dataset = get_dataset_uneven_incomplete
+elif dataset_type == 3: # Uneven,  diff pos
+	shapes_dataset = 'get_dataset_uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+	dataset_name = 'Uneven-diffpos'
+    f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
+elif dataset_type == 4: #
+	print("Not Supported type")
 
 if __name__ == "__main__":
 
@@ -30,8 +51,7 @@ if __name__ == "__main__":
     if debugging:
         print('=============== Debugging ===================================')
 
-    folder_name = 'shapes/uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
-    f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
+    folder_name = 'shapes/{}'.format(shapes_dataset)
     #get_dataset_different_targets_zero_shot
     #get_dataset_balanced_zero_shot
     #get_dataset_uneven_incomplete#get_dataset_different_targets_incomplete#get_dataset_uneven_different_targets #get_dataset_balanced_incomplete #get_dataset_uneven #get_dataset_different_targets_three_figures#get_dataset_different_targets
@@ -40,9 +60,13 @@ if __name__ == "__main__":
     # np.random.seed(seed)
 
     # From Serhii's original experiment
-    train_size = 74504 if not debugging else 10
-    val_size = 8279 if not debugging else 10
-    test_size = 40504 if not debugging else 10
+    # train_size = 74504 if not debugging else 10
+    # val_size = 8279 if not debugging else 10
+    # test_size = 40504 if not debugging else 10
+
+    train_size = 7450 if not debugging else 10
+    val_size = 827 if not debugging else 10
+    test_size = 4050 if not debugging else 10
 
     is_uneven = (f_generate_dataset is get_dataset_uneven
                 or f_generate_dataset is get_dataset_uneven_different_targets
