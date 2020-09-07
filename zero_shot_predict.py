@@ -148,7 +148,7 @@ if not does_shapes_onehot_metadata_exist(target_shapes_dataset):
 	create_shapes_onehot_metadata(target_shapes_dataset)
 
 # Load metadata - only target is needed
-_train_metadata, _valid_metadata, target_test_metadata = load_shapes_onehot_metadata(target_shapes_dataset)
+_train_metadata, _valid_metadata, target_test_metadata, _ = load_shapes_onehot_metadata(target_shapes_dataset)
 
 
 # Settings

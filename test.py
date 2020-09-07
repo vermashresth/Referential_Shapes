@@ -42,7 +42,7 @@ max_sentence_length = 5
 shapes_dataset = 'uneven_different_targets_row_incomplete_noise_0_3_3'
 vl_loss_weight = 0.0
 bound_weight = 1.0
-should_train_visual = True
+should_train_visual = 1
 cnn_model_file_name = None
 rsa_sampling = 50
 seed = 42
@@ -50,6 +50,7 @@ use_symbolic_input = False
 noise_strength = 0
 
 cmd_parser = argparse.ArgumentParser()
+cmd_parser.add_argument('--K', type=int, default=K)
 cmd_parser.add_argument('--seed', type=int, default=seed)
 cmd_parser.add_argument('--vocab_size', type=int, default=vocab_size)
 cmd_parser.add_argument('--max_sentence_length', type=int, default=max_sentence_length)
@@ -59,16 +60,16 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--shapes_dataset', type=str, default=shapes_dataset)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 
-excl_group = cmd_parser.add_mutually_exclusive_group()
-excl_group.add_argument('--should_train_visual', action='store_true', default=should_train_visual)
-excl_group.add_argument('--cnn_model_file_name', type=str, default=cnn_model_file_name)
+cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
+cmd_parser.add_argument('--cnn_model_file_name', type=str, default=cnn_model_file_name)
 
-cmd_parser.add_argument('rsa_sampling', type=int, default=rsa_sampling)
+cmd_parser.add_argument('--rsa_sampling', type=int, default=rsa_sampling)
 
 cmd_args = cmd_parser.parse_args()
 
 # Overwrite default settings if given in command line
 # if len(sys.argv) > 1:
+K = cmd_args.K #int(sys.argv[1])
 seed = cmd_args.seed #int(sys.argv[1])
 vocab_size = cmd_args.vocab_size #int(sys.argv[2])
 max_sentence_length = cmd_args.max_sentence_length #int(sys.argv[3])
@@ -81,6 +82,7 @@ cnn_model_file_name = cmd_args.cnn_model_file_name
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 
+wandb.config.K = seed #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
 wandb.config.vocab_size = vocab_size #int(sys.argv[2])
 wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
@@ -351,7 +353,7 @@ for epoch in range(EPOCHS):
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))
 
-	es.step(eval_acc_meter.avg)
+	# es.step(eval_acc_meter.avg)
 
 	if should_dump:
 		# Save model every epoch
@@ -371,9 +373,9 @@ for epoch in range(EPOCHS):
 			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
 			dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
 
-	if es.is_converged:
-		print("Converged in epoch {}".format(e))
-		break
+	# if es.is_converged:
+	# 	print("Converged in epoch {}".format(e))
+	# 	break
 
 	if seconds_current_epoch * (e+1) >= 75000:
 		print("Stopping because wall time limit is close")

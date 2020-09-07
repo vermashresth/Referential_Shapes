@@ -32,6 +32,7 @@ if __name__ == "__main__":
 
     folder_name = 'shapes/uneven_different_targets_row_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
     f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
+    #get_dataset_different_targets_zero_shot
     #get_dataset_balanced_zero_shot
     #get_dataset_uneven_incomplete#get_dataset_different_targets_incomplete#get_dataset_uneven_different_targets #get_dataset_balanced_incomplete #get_dataset_uneven #get_dataset_different_targets_three_figures#get_dataset_different_targets
 
