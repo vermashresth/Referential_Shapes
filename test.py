@@ -79,7 +79,6 @@ vl_loss_weight = cmd_args.vl_loss_weight #float(sys.argv[5])
 bound_weight = cmd_args.bound_weight #float(sys.argv[6])
 use_symbolic_input = cmd_args.use_symbolic_input
 should_train_visual = cmd_args.should_train_visual
-cnn_model_file_name = cmd_args.cnn_model_file_name
 use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
@@ -148,7 +147,8 @@ wandb.config.cnn_model_file_name = cnn_model_file_name
 wandb.config.use_random_model = use_random_model
 wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
-
+wandb.config.repr = repr
+wandb.config.exp_id = model_id[6:]
 
 ################# Print info ####################
 print('========================================')
