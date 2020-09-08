@@ -95,6 +95,8 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_si_meter,
 		rsa_ri_meter,
 		topological_sim_meter,
+		posdis_meter,
+		bosdis_meter,
 		language_entropy_meter)
 
 

@@ -386,6 +386,8 @@ for epoch in range(EPOCHS):
 	_,
 	_,
 	_,
+	_,
+	_,
 	_) = evaluate(model, noise_data, eval_word_counts, noise_metadata, debugging)
 	noise_accuracy_meters.append(noise_acc_meter)
 

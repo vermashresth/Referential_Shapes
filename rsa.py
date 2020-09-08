@@ -193,9 +193,11 @@ def representation_similarity_analysis(
     rsa_ri = scipy.stats.pearsonr(sim_hidden_receiver, sim_image_features)[0]
     topological_similarity = scipy.stats.pearsonr(sim_messages, sim_metadata)[0]
 
-    attributes = torch.Tensor(test_metadata).view(-1, n_attributes, n_values).argmax(dim=-1)
+    dis_samples = min(10*samples, len(test_metadata))
+    rnd = np.random.choice(len(test_metadata), dis_samples, replace=False)
+    attributes = torch.Tensor(test_metadata[rnd]).view(-1, n_attributes, n_values).argmax(dim=-1)
     # strings = messages.view(messages.size(0), -1).detach()
-    strings = torch.Tensor(messages).argmax(dim=-1)
+    strings = torch.Tensor(messages[rnd]).argmax(dim=-1)
 
     positional_disent = information_gap_representation(attributes, strings)
     histograms = histogram(strings, vocab_size)
@@ -206,7 +208,7 @@ def representation_similarity_analysis(
         pseudo_tre = np.linalg.norm(sim_metadata - sim_messages, ord=1)
         return rsa_sr, rsa_si, rsa_ri, topological_similarity, pseudo_tre
     else:
-        return rsa_sr, rsa_si, rsa_ri, topological_similarity
+        return rsa_sr, rsa_si, rsa_ri, topological_similarity, positional_disent, bos_disent
 
 
 # def representation_similarity_analysis_freq(
