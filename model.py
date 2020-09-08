@@ -340,7 +340,7 @@ class Model(nn.Module):
 		messages_for_metrics = discretize_messages(m).detach().cpu().numpy() if self.training else m.cpu().numpy()
 
 		if self.n_rsa_samples > 0:
-			rsa_sr, rsa_si, rsa_ri, topological_sim = representation_similarity_analysis(
+			rsa_sr, rsa_si, rsa_ri, topological_sim, posdis, bosdis = representation_similarity_analysis(
 					target_sender.cpu(),
 					target_onehot_metadata,
 					messages_for_metrics,
@@ -365,4 +365,6 @@ class Model(nn.Module):
 			rsa_si,
 			rsa_ri,
 			topological_sim,
+			posdis,
+			bosdis,
 			language_entropy(messages_for_metrics))

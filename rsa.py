@@ -8,6 +8,8 @@ import json
 import torch
 import numpy as np
 
+n_attributes = 5
+n_values = 3
 
 def entropy_dict(freq_table):
     H = 0
@@ -135,7 +137,7 @@ def representation_similarity_analysis(
     generated_messages,
     hidden_sender,
     hidden_receiver,
-    vocab_size
+    vocab_size,
     samples=5000,
     tre=False,
 ):
@@ -191,9 +193,9 @@ def representation_similarity_analysis(
     rsa_ri = scipy.stats.pearsonr(sim_hidden_receiver, sim_image_features)[0]
     topological_similarity = scipy.stats.pearsonr(sim_messages, sim_metadata)[0]
 
-    attributes = test_metadata.detach().argmax(dim=-1)
-    strings = messages.view(messages.size(0), -1).detach()
-    strings = messages.detach().argmax(dim=-1)
+    attributes = torch.Tensor(test_metadata).view(-1, n_attributes, n_values).argmax(dim=-1)
+    # strings = messages.view(messages.size(0), -1).detach()
+    strings = torch.Tensor(messages).argmax(dim=-1)
 
     positional_disent = information_gap_representation(attributes, strings)
     histograms = histogram(strings, vocab_size)

@@ -286,6 +286,12 @@ eval_rsa_ri_meters = []
 topological_sim_meters = []
 eval_topological_sim_meters = []
 
+posdis_meters = []
+eval_posdis_meters = []
+
+bosdis_meters = []
+eval_bosdis_meters = []
+
 language_entropy_meters = []
 eval_language_entropy_meters = []
 
@@ -320,6 +326,8 @@ for epoch in range(EPOCHS):
 	epoch_rsa_si_meter,
 	epoch_rsa_ri_meter,
 	epoch_topological_sim_meter,
+	epoch_posdis_meter,
+	epoch_bosdis_meter,
 	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging)
 	print("done one epoch")
 	if math.isnan(epoch_loss_meter.avg):
@@ -335,6 +343,8 @@ for epoch in range(EPOCHS):
 	rsa_si_meters.append(epoch_rsa_si_meter)
 	rsa_ri_meters.append(epoch_rsa_ri_meter)
 	topological_sim_meters.append(epoch_topological_sim_meter)
+	posdis_meters.append(epoch_posdis_meter)
+	bosdis_meters.append(epoch_bosdis_meter)
 	language_entropy_meters.append(epoch_lang_entropy_meter)
 	word_counts += epoch_w_counts
 
@@ -349,6 +359,8 @@ for epoch in range(EPOCHS):
 	eval_rsa_si_meter,
 	eval_rsa_ri_meter,
 	eval_topological_sim_meter,
+	eval_posdis_meter,
+	eval_bosdis_meter,
 	eval_lang_entropy_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
 
 	eval_losses_meters.append(eval_loss_meter)
@@ -359,6 +371,8 @@ for epoch in range(EPOCHS):
 	eval_rsa_si_meters.append(eval_rsa_si_meter)
 	eval_rsa_ri_meters.append(eval_rsa_ri_meter)
 	eval_topological_sim_meters.append(eval_topological_sim_meter)
+	eval_posdis_meters.append(eval_posdis_meter)
+	eval_bosdis_meters.append(eval_bosdis_meter)
 	eval_language_entropy_meters.append(eval_lang_entropy_meter)
 
 	(_,
@@ -380,12 +394,16 @@ for epoch in range(EPOCHS):
 	if rsa_sampling > 0:
 		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {} \n Topological sim: {} \n'.format(
 			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
+		print(' Train posdis: {}, Train posdis: {}, Eval posdis: {}, Eval bosdis: {}'.format(
+			epoch_bosdis_meter.avg, epoch_bosdis_meter.avg, eval_posdis_meter.avg, eval_bosdis_meter.avg))
 		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
 			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 
 	wandb.log({'Epoch':e, 'average train loss': losses_meters[e].avg, 'average val loss': eval_losses_meters[e].avg, 'average accuracy': accuracy_meters[e].avg, 'average val accuracy': eval_accuracy_meters[e].avg, 'average noise accuracy': noise_accuracy_meters[e].avg})
-	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg, 'Topological sim':epoch_topological_sim_meter.avg})
-	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg, 'Topological sim':eval_topological_sim_meter.avg})
+	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg})
+	wandb.log({'Topological sim':epoch_topological_sim_meter.avg, 'Posdis':epoch_bosdis_meter.avg, 'Bosdis':epoch_bosdis_meter.avg})
+	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg})
+	wandb.log({'Eval Topological sim':eval_topological_sim_meter.avg, 'Eval Posdis':eval_posdis_meter.avg, 'Eval Bosdis':eval_bosdis_meter.avg})
 
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))

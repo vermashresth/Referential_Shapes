@@ -2,6 +2,7 @@ from utils import AverageMeter, discretize_messages
 import torch
 import torch.nn as nn
 import time
+import numpy as np
 
 def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	is_training_mode = not optimizer is None
@@ -15,6 +16,8 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	rsa_ri_meter = AverageMeter()
 	topological_sim_meter = AverageMeter()
 	language_entropy_meter = AverageMeter()
+	posdis_meter = AverageMeter()
+	bosdis_meter = AverageMeter()
 	messages = []
 	indices = []
 	w_counts = word_counts.clone()
@@ -42,6 +45,8 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_si,
 		rsa_ri,
 		topological_sim,
+		posdis,
+		bosdis,
 		lang_entropy) = model(target,
 								distractors,
 								w_counts,
@@ -55,6 +60,10 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		rsa_si_meter.update(rsa_si)
 		rsa_ri_meter.update(rsa_ri)
 		topological_sim_meter.update(topological_sim)
+		if not np.isnan(posdis):
+			posdis_meter.update(posdis)
+		if not np.isnan(bosdis):
+			bosdis_meter.update(bosdis)
 		language_entropy_meter.update(lang_entropy)
 
 		messages.append(discretize_messages(m) if is_training_mode else m)
