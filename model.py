@@ -346,6 +346,7 @@ class Model(nn.Module):
 					messages_for_metrics,
 					input_embed_rep_sender.detach().cpu(),
 					input_embed_rep_receiver.detach().cpu(),
+					self.vocab_size,
 					samples=self.n_rsa_samples
 				)
 		else:
