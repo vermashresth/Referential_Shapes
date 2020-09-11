@@ -38,6 +38,7 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 		(loss,
 		acc,
 		m,
+		_,
 		batch_w_counts,
 		entropy,
 		distinctness,

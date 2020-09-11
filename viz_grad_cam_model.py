@@ -10,6 +10,7 @@ from visual_module import CNN
 from rsa import representation_similarity_analysis
 from utils import discretize_messages
 from entropy import language_entropy
+import copy
 
 class Sender(nn.Module):
 	def __init__(self, n_image_features, vocab_size,
@@ -142,6 +143,7 @@ class Sender(nn.Module):
 			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 		vocab_scores_array = torch.stack(vocab_scores_array, 1)
+		print(vocab_scores_array)
 		return (torch.stack(message, dim=1),
 				seq_lengths,
 				vl_loss,
@@ -202,7 +204,7 @@ class Model(nn.Module):
 		vl_loss_weight, bound_weight,
 		should_train_cnn, n_rsa_samples, use_gpu):
 		super().__init__()
-
+		self.n_image_features = n_image_features
 		self.use_gpu = use_gpu
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
@@ -270,9 +272,15 @@ class Model(nn.Module):
 		if self.should_train_cnn:
 			if not use_different_targets:
 				# Extract features
-				target = self.cnn(target)
-				distractors = [self.cnn(d) for d in distractors]
 
+				print("hello2")
+				cnn_copy = type(self.cnn)(self.n_image_features) # get a new instance
+				cnn_copy.load_state_dict(self.cnn.state_dict()) # copy weights and stuff
+				cnn_copy.cuda()
+				distractors = [torch.Tensor(cnn_copy(d).detach().cpu().numpy()).cuda() for d in distractors]
+				# self.cnn.zero_grad()
+				print("hello1")
+				target = self.cnn(target)
 				target_sender = target
 				target_receiver = target
 			else:
