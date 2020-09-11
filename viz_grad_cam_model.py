@@ -202,9 +202,9 @@ class Model(nn.Module):
 		embedding_dim, hidden_size,
 		bound_idx, max_sentence_length,
 		vl_loss_weight, bound_weight,
-		should_train_cnn, n_rsa_samples, use_gpu):
+		should_train_cnn, n_rsa_samples, use_gpu, K, use_distractors_in_sender):
 		super().__init__()
-		self.n_image_features = n_image_features
+
 		self.use_gpu = use_gpu
 		self.bound_token_idx = bound_idx
 		self.max_sentence_length = max_sentence_length
@@ -213,11 +213,15 @@ class Model(nn.Module):
 		self.bound_weight = bound_weight # alpha
 		self.should_train_cnn = should_train_cnn
 		self.n_rsa_samples = n_rsa_samples
+		self.use_distractors_in_sender = use_distractors_in_sender
 
 		if self.should_train_cnn:
 			self.cnn = CNN(n_image_features)
-
-		self.sender = Sender(n_image_features, vocab_size,
+		if self.use_distractors_in_sender:
+			sender_image_features = (K+1)*n_image_features
+		else:
+			sender_image_features = n_image_features
+		self.sender = Sender(sender_image_features, vocab_size,
 			embedding_dim, hidden_size,
 			bound_idx, max_sentence_length, vl_loss_weight, bound_weight, use_gpu)
 		self.receiver = Receiver(n_image_features, vocab_size,
@@ -281,7 +285,7 @@ class Model(nn.Module):
 				cnn_copy = type(self.cnn)(self.n_image_features) # get a new instance
 				cnn_copy.load_state_dict(self.cnn.state_dict()) # copy weights and stuff
 				cnn_copy.cuda()
-				if self.mode == 'r_d':
+				if self.mode in ['r_d', 's_d']:
 					distractors = [self.cnn(d) for d in distractors]
 				else:
 					distractors = [torch.Tensor(cnn_copy(d).detach().cpu().numpy()).cuda() for d in distractors]
@@ -309,7 +313,11 @@ class Model(nn.Module):
 
 				# Just use the first distractor
 				distractors = [d[:, 0, :] for d in distractors]
-
+		imgs = []
+		imgs.append(target_sender)
+		imgs.extend(distractors)
+		if self.use_distractors_in_sender:
+			target_sender = torch.cat(imgs, dim=-1)
 		# Forward pass on Sender with its target
 		m, seq_lengths, vl_loss, entropy, input_embed_rep_sender, vocab_scores_array = self.sender(target_sender, word_counts)
 

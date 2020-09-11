@@ -31,7 +31,7 @@ class ImageDataset():
             # torchvision.transforms.ToPILImage(),
             # torchvision.transforms.Resize((128, 128), Image.LINEAR),
             torchvision.transforms.ToTensor(),
-            torchvision.transforms.Normalize(self.mean, self.std)
+            # torchvision.transforms.Normalize(self.mean, self.std)
         ])
 
     def __getitem__(self, indices):

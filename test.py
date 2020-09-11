@@ -48,6 +48,7 @@ rsa_sampling = 50
 seed = 42
 use_symbolic_input = False
 noise_strength = 0
+use_distractors_in_sender = False
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -59,6 +60,7 @@ cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
+cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -82,6 +84,7 @@ should_train_visual = cmd_args.should_train_visual
 use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
+use_distractors_in_sender = cmd_args.use_distractors_in_sender
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -111,7 +114,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed-{}_K-{}_repr-{}_data-{}_noise-{}'.format(seed, K, repr, dataset_name, noise_strength)
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -249,7 +252,7 @@ model = Model(n_image_features, vocab_size,
 	bound_idx, max_sentence_length,
 	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
-	use_gpu)
+	use_gpu, K, use_distractors_in_sender)
 
 wandb.watch(model)
 

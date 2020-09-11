@@ -48,6 +48,7 @@ rsa_sampling = -1
 seed = 42
 use_symbolic_input = False
 noise_strength = 0
+use_distractors_in_sender = False
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -59,6 +60,8 @@ cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
+cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -82,6 +85,7 @@ should_train_visual = cmd_args.should_train_visual
 use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
+use_distractors_in_sender = cmd_args.use_distractors_in_sender
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -111,7 +115,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed-{}_K-{}_repr-{}_data-{}_noise-{}'.format(seed, K, repr, dataset_name, noise_strength)
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -142,6 +146,7 @@ wandb.config.dataset_name = dataset_name #sys.argv[4]
 wandb.config.vl_loss_weight = vl_loss_weight #float(sys.argv[5])
 wandb.config.bound_weight = bound_weight #float(sys.argv[6])
 wandb.config.use_symbolic_input = use_symbolic_input
+wandb.config.use_distractors_in_sender = use_distractors_in_sender
 wandb.config.should_train_visual = should_train_visual
 wandb.config.cnn_model_file_name = cnn_model_file_name
 wandb.config.use_random_model = use_random_model
@@ -149,6 +154,7 @@ wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
 wandb.config.repr = repr
 wandb.config.exp_id = model_id[6:]
+
 
 # ################# Print info ####################
 # print('========================================')
@@ -250,7 +256,7 @@ model = Model(n_image_features, vocab_size,
 	bound_idx, max_sentence_length,
 	vl_loss_weight, bound_weight,
 	should_train_visual, rsa_sampling,
-	use_gpu)
+	use_gpu, K, use_distractors_in_sender)
 
 # wandb.watch(model)
 model.eval()
@@ -370,37 +376,23 @@ for batch in valid_data: # or anything else you want to do
   heatmap_s, result = visualize_cam(mask, target)
   model.zero_grad()
 
-  sm = simpleModel(model, distractors, word_counts, 's_t')
+  sm = simpleModel(model, distractors, word_counts, 's_d')
   sm.eval()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[7])
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
   mask, _ = gradcam(target)
-  heatmap_s_7, result = visualize_cam(mask, target)
-  model.zero_grad()
-
-  sm = simpleModel(model, distractors, word_counts, 's_t')
-  sm.eval()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
-  mask, _ = gradcam(target)
-  heatmap_s_6, result = visualize_cam(mask, target)
-  model.zero_grad()
-
-  sm = simpleModel(model, distractors, word_counts, 's_t')
-  sm.eval()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[5])
-  mask, _ = gradcam(target)
-  heatmap_s_5, result = visualize_cam(mask, target)
+  heatmap_s_d, result = visualize_cam(mask, target)
   model.zero_grad()
 
   sm = simpleModel(model, distractors, word_counts, 'r_t')
   sm.train()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
   mask, _ = gradcam(target)
   heatmap_r, result = visualize_cam(mask, target)
   model.zero_grad()
 
   sm = simpleModel(model, target, word_counts, 'r_d')
   sm.train()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
   mask, _ = gradcam(distractors[0])
   heatmap_r_d, result = visualize_cam(mask, distractors[0])
 
@@ -416,12 +408,13 @@ for batch in valid_data: # or anything else you want to do
   from torchvision import transforms
   import matplotlib.pyplot as plt
 
-  images.extend([torch.Tensor(target.cpu().numpy()[0]*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
-                torch.Tensor(distractors[0].cpu()[0].numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
+  images.extend([torch.Tensor(target.cpu().numpy()[0]),
+                torch.Tensor(distractors[0].cpu()[0].numpy()),
                 torch.Tensor(heatmap_s),
+				torch.Tensor(heatmap_s_d),
                 torch.Tensor(heatmap_r),
                 torch.Tensor(heatmap_r_d)])
   ct+=1
-grid_image = make_grid(images, nrow=5)
+grid_image = make_grid(images, nrow=6)
 img = grid_image.numpy()
 np.save('grid.npy', img)
