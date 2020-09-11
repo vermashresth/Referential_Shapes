@@ -28,7 +28,7 @@ should_covert_to_words = True#not debugging
 should_dump_indices = True#not debugging
 
 
-EPOCHS = 10 if not debugging else 3
+EPOCHS = 30 if not debugging else 3
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 8
@@ -150,65 +150,65 @@ wandb.config.noise_strength = noise_strength
 wandb.config.repr = repr
 wandb.config.exp_id = model_id[6:]
 
-################# Print info ####################
-print('========================================')
-print('Model id: {}'.format(model_id))
-print('Seed: {}'.format(seed))
-print('Training visual module: {}'.format(should_train_visual))
-if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
-	print('Loading pretrained CNN from: {}'.format(cnn_model_file_name))
-print('|V|: {}'.format(vocab_size))
-print('L: {}'.format(max_sentence_length))
-print('Using gpu: {}'.format(use_gpu))
-if not shapes_dataset is None:
-	print('Dataset: {} ({})'.format(shapes_dataset, 'symbolic' if use_symbolic_input else 'pixels'))
-else:
-	print('Dataset: mscoco')
-print('Lambda: {}'.format(vl_loss_weight))
-print('Alpha: {}'.format(bound_weight))
-if not use_symbolic_input and not shapes_dataset is None:
-	print('N image features: {}'.format(n_image_features))
-if rsa_sampling >= 0:
-	print('N samples for RSA: {}'.format(rsa_sampling))
-print()
-#################################################
+# ################# Print info ####################
+# print('========================================')
+# print('Model id: {}'.format(model_id))
+# print('Seed: {}'.format(seed))
+# print('Training visual module: {}'.format(should_train_visual))
+# if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
+# 	print('Loading pretrained CNN from: {}'.format(cnn_model_file_name))
+# print('|V|: {}'.format(vocab_size))
+# print('L: {}'.format(max_sentence_length))
+# print('Using gpu: {}'.format(use_gpu))
+# if not shapes_dataset is None:
+# 	print('Dataset: {} ({})'.format(shapes_dataset, 'symbolic' if use_symbolic_input else 'pixels'))
+# else:
+# 	print('Dataset: mscoco')
+# print('Lambda: {}'.format(vl_loss_weight))
+# print('Alpha: {}'.format(bound_weight))
+# if not use_symbolic_input and not shapes_dataset is None:
+# 	print('N image features: {}'.format(n_image_features))
+# if rsa_sampling >= 0:
+# 	print('N samples for RSA: {}'.format(rsa_sampling))
+# print()
+# #################################################
 
-print("build vocab")
+# print("build vocab")
 if not shapes_dataset is None:
 	# Create vocab if there is not one for the desired size already
 	if not does_vocab_exist(vocab_size):
 		build_vocab(vocab_size)
 
-print("loading vocab")
+# print("loading vocab")
 # Load vocab
 word_to_idx, idx_to_word, bound_idx = load_dictionaries(
 	'shapes' if not shapes_dataset is None else 'mscoco',
 	vocab_size)
-print("loading pretrained cnn")
+# print("loading pretrained cnn")
 # Load pretrained CNN if necessary
-if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
-	cnn_model_id = cnn_model_file_name.split('/')[-1]
+# if not should_train_visual and not use_symbolic_input and not shapes_dataset is None:
+# 	cnn_model_id = cnn_model_file_name.split('/')[-1]
+#
+# 	features_folder_name = 'data/shapes/{}_{}'.format(shapes_dataset, cnn_model_id)
+#
+# 	# Check if the features were already extracted with this CNN
+# 	if not os.path.exists(features_folder_name):
+# 		# Load CNN from dumped model
+# 		state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
+# 		cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
+# 		trained_cnn = CNN(n_image_features)
+# 		trained_cnn.load_state_dict(cnn_state)
+#
+# 		if use_gpu:
+# 			trained_cnn = trained_cnn.cuda()
+#
+# 		print("=CNN state loaded=")
+# 		print("Extracting features...")
+#
+# 		# Dump the features to then load them
+# 		features_folder_name = save_features(trained_cnn, shapes_dataset, cnn_model_id)
 
-	features_folder_name = 'data/shapes/{}_{}'.format(shapes_dataset, cnn_model_id)
-
-	# Check if the features were already extracted with this CNN
-	if not os.path.exists(features_folder_name):
-		# Load CNN from dumped model
-		state = torch.load(cnn_model_file_name, map_location= lambda storage, location: storage)
-		cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
-		trained_cnn = CNN(n_image_features)
-		trained_cnn.load_state_dict(cnn_state)
-
-		if use_gpu:
-			trained_cnn = trained_cnn.cuda()
-
-		print("=CNN state loaded=")
-		print("Extracting features...")
-
-		# Dump the features to then load them
-		features_folder_name = save_features(trained_cnn, shapes_dataset, cnn_model_id)
-
-print("crating one hot metadata")
+# print("crating one hot metadata")
 if not shapes_dataset is None:
 	# Create onehot metadata if not created yet
 	if not does_shapes_onehot_metadata_exist(shapes_dataset):
@@ -221,26 +221,26 @@ else:
 	valid_metadata = None
 	test_metadata = None
 	noise_metadata = None
-print("loaded metadata")
-print("loading data")
+# print("loaded metadata")
+# print("loading data")
 # Load data
-if not shapes_dataset is None:
-	if not use_symbolic_input:
-		if should_train_visual:
-			train_data, valid_data, test_data, noise_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-		else:
-			n_pretrained_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
-				features_folder_name, BATCH_SIZE, K)
-			assert n_pretrained_image_features == n_image_features
-	else:
-		n_image_features, train_data, valid_data, test_data, noise_data= load_pretrained_features(
-			'shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, use_symbolic=True)
-else:
-	n_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
-			'data/mscoco', BATCH_SIZE, K)
-	print('\nUsing {} image features\n'.format(n_image_features))
-
-print("data loaded")
+# if not shapes_dataset is None:
+# 	if not use_symbolic_input:
+# 		if should_train_visual:
+# 			train_data, valid_data, test_data, noise_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
+# 		else:
+# 			n_pretrained_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
+# 				features_folder_name, BATCH_SIZE, K)
+# 			assert n_pretrained_image_features == n_image_features
+# 	else:
+# 		n_image_features, train_data, valid_data, test_data, noise_data= load_pretrained_features(
+# 			'shapes/{}'.format(shapes_dataset), BATCH_SIZE, K, use_symbolic=True)
+# else:
+# 	n_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
+# 			'data/mscoco', BATCH_SIZE, K)
+# 	print('\nUsing {} image features\n'.format(n_image_features))
+#
+# print("data loaded")
 # Settings
 should_train_visual = 1
 
@@ -253,7 +253,7 @@ model = Model(n_image_features, vocab_size,
 	use_gpu)
 
 # wandb.watch(model)
-
+model.eval()
 print("model created")
 if use_gpu:
 	model = model.cuda()
@@ -269,10 +269,7 @@ model.load_state_dict(state)
 #   print(name, layer)
 
 train_data, valid_data, test_data, noise_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
-for batch in valid_data: # or anything else you want to do
-    break
-# print(len(batch))
-target, distractors, idx = batch
+
 
 word_counts = torch.zeros([vocab_size])
 
@@ -296,8 +293,7 @@ word_counts = torch.zeros([vocab_size])
 # print(len(distractors))
 # print(distractors[0].size())
 # print(idx)
-target = target[1].unsqueeze(0)
-distractors = [distractors[0][1].unsqueeze(0)]
+
 # print(target.size())
 # print(distractors[0].size())
 
@@ -308,54 +304,125 @@ from gradcam.utils import visualize_cam
 from gradcam import GradCAM, GradCAMpp
 import torch.nn as nn
 class simpleModel(nn.Module):
-  def __init__(self, model, distractors, word_counts):
+  def __init__(self, model, variable, word_counts, mode):
     super().__init__()
     self.model = model
-    self.distractors = distractors
+    self.model.mode = mode
+    if mode=='r_t' or mode=='s_t':
+        print("case 0")
+        self.distractors = variable
+    else:
+        print("case 1")
+        self.target = variable
     self.word_counts = word_counts
-  def forward(self, target):
+  def forward(self, inp):
     # print(cat_target.size(), 'cat')
     # target, distractors = torch.split(cat_target, [30,30], -1)
     # distractors = [distractors]
     # print(target.size())
     # print(distractors[0].size())
-    (loss,
-		acc,
-		m,
-    vocab_scores_tensor,
-		batch_w_counts,
-		entropy,
-		distinctness,
-		rsa_sr,
-		rsa_si,
-		rsa_ri,
-		topological_sim,
-		posdis,
-		bosdis,
-		lang_entropy) = self.model(target, self.distractors, self.word_counts, None)
+    if self.model.mode in ['s_t', 'r_t']:
+        (loss,
+    		acc,
+    		m,
+        vocab_scores_tensor,
+    		batch_w_counts,
+    		entropy,
+    		distinctness,
+    		rsa_sr,
+    		rsa_si,
+    		rsa_ri,
+    		topological_sim,
+    		posdis,
+    		bosdis,
+    		lang_entropy) = self.model(inp, self.distractors, self.word_counts, None)
+    else:
+        (loss,
+    		acc,
+    		m,
+        vocab_scores_tensor,
+    		batch_w_counts,
+    		entropy,
+    		distinctness,
+    		rsa_sr,
+    		rsa_si,
+    		rsa_ri,
+    		topological_sim,
+    		posdis,
+    		bosdis,
+    		lang_entropy) = self.model(self.target, [inp], self.word_counts, None)
+
     print('acc', acc)
     return vocab_scores_tensor
-sm = simpleModel(model, distractors, word_counts)
-sm.eval()
-# for name, layer in sm.named_modules():
-#   print(name, layer)
-# print(sm.model.sender.linear_probs)
+images = []
+ct = 0
+for batch in valid_data: # or anything else you want to do
+  if ct==6:
+    break
+  target, distractors, idx = batch
+  target = target[0].unsqueeze(0)
+  distractors = [distractors[0][0].unsqueeze(0)]
 
-# from captum.attr import LayerGradCam, LayerAttribution
-# layer_gc = LayerGradCam(sm, sm.model.cnn.conv_net[8])
-# cat = torch.cat([target, distractors[0]], -1)
-# cat.requires_grad = True
-# attr = layer_gc.attribute(cat, 0)
-# # upsampled_attr = LayerAttribution.interpolate(attr, (32, 32))
+  sm = simpleModel(model, distractors, word_counts, 's_t')
+  sm.eval()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
+  mask, _ = gradcam(target)
+  heatmap_s, result = visualize_cam(mask, target)
+  model.zero_grad()
 
-gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
-# cat = torch.cat([target, distractors[0]], -1)
-# print(cat.size(), "size")
-mask, _ = gradcam(target)
-heatmap, result = visualize_cam(mask, target)
+  sm = simpleModel(model, distractors, word_counts, 's_t')
+  sm.eval()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[7])
+  mask, _ = gradcam(target)
+  heatmap_s_7, result = visualize_cam(mask, target)
+  model.zero_grad()
 
-# print(valid_data.dataset.mean, valid_data.dataset.std)
-np.save('image2.npy', target.cpu().numpy())
-np.save('distractor2.npy', distractors[0].cpu().numpy())
-np.save('result2.npy', result)
-np.save('heatmap2.npy', heatmap)
+  sm = simpleModel(model, distractors, word_counts, 's_t')
+  sm.eval()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  mask, _ = gradcam(target)
+  heatmap_s_6, result = visualize_cam(mask, target)
+  model.zero_grad()
+
+  sm = simpleModel(model, distractors, word_counts, 's_t')
+  sm.eval()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[5])
+  mask, _ = gradcam(target)
+  heatmap_s_5, result = visualize_cam(mask, target)
+  model.zero_grad()
+
+  sm = simpleModel(model, distractors, word_counts, 'r_t')
+  sm.train()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  mask, _ = gradcam(target)
+  heatmap_r, result = visualize_cam(mask, target)
+  model.zero_grad()
+
+  sm = simpleModel(model, target, word_counts, 'r_d')
+  sm.train()
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  mask, _ = gradcam(distractors[0])
+  heatmap_r_d, result = visualize_cam(mask, distractors[0])
+
+  # print(valid_data.dataset.mean, valid_data.dataset.std)
+  np.save('image2.npy', target.cpu().numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0])
+  np.save('distractor2.npy', distractors[0].cpu().numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0])
+  np.save('result2.npy', result)
+  np.save('heatmap2_s.npy', heatmap_s)
+  np.save('heatmap2_r.npy', heatmap_r)
+  np.save('heatmap2_r_d.npy', heatmap_r_d)
+
+  from torchvision.utils import make_grid
+  from torchvision import transforms
+  import matplotlib.pyplot as plt
+
+  images.extend([torch.Tensor(target.cpu().numpy()[0]*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
+                torch.Tensor(distractors[0].cpu()[0].numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
+                torch.Tensor(heatmap_s),
+                torch.Tensor(heatmap_s_7),
+                torch.Tensor(heatmap_s_6),
+                torch.Tensor(heatmap_s_5)])
+  ct+=1
+grid_image = make_grid(images, nrow=6)
+img = grid_image.numpy()
+np.save('grid.npy', img)

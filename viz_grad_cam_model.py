@@ -143,7 +143,7 @@ class Sender(nn.Module):
 			if self.vl_loss_weight > 0.0:
 				vl_loss += ce_loss(vocab_scores - normalized_word_counts, self._discretize_token(token))
 		vocab_scores_array = torch.stack(vocab_scores_array, 1)
-		print(vocab_scores_array)
+		# print(vocab_scores_array)
 		return (torch.stack(message, dim=1),
 				seq_lengths,
 				vl_loss,
@@ -163,7 +163,7 @@ class Receiver(nn.Module):
 		self.lstm = nn.LSTM(embedding_dim, hidden_size, num_layers=1, batch_first=True)
 		self.embedding = nn.Parameter(torch.empty((vocab_size, embedding_dim), dtype=torch.float32))
 		self.aff_transform = nn.Linear(hidden_size, n_image_features)
-
+		self.mode= None
 		self.reset_parameters()
 
 	def reset_parameters(self):
@@ -258,7 +258,12 @@ class Model(nn.Module):
 	def _count_unique_messages(self, m):
 		return len(np.unique(m.detach().cpu().numpy(), axis=0))
 
+	def grad_cam(self, mode):
+		# mode either s_t, r_t, r_d
+		self.mode = mode
+
 	def forward(self, target, distractors, word_counts, target_onehot_metadata):
+		self.receiver.mode = self.mode
 		batch_size = target.shape[0]
 
 		if self.use_gpu:
@@ -273,16 +278,20 @@ class Model(nn.Module):
 			if not use_different_targets:
 				# Extract features
 
-				print("hello2")
 				cnn_copy = type(self.cnn)(self.n_image_features) # get a new instance
 				cnn_copy.load_state_dict(self.cnn.state_dict()) # copy weights and stuff
 				cnn_copy.cuda()
-				distractors = [torch.Tensor(cnn_copy(d).detach().cpu().numpy()).cuda() for d in distractors]
+				if self.mode == 'r_d':
+					distractors = [self.cnn(d) for d in distractors]
+				else:
+					distractors = [torch.Tensor(cnn_copy(d).detach().cpu().numpy()).cuda() for d in distractors]
 				# self.cnn.zero_grad()
-				print("hello1")
-				target = self.cnn(target)
-				target_sender = target
-				target_receiver = target
+				if self.mode == 's_t':
+					target_out = self.cnn(target)
+				else:
+					target_out = torch.Tensor(cnn_copy(target).detach().cpu().numpy()).cuda()
+				target_sender = target_out
+				target_receiver = target_out
 			else:
 				# Extract features
 				target_sender = self.cnn(target[:, 0, :, :, :])
@@ -310,12 +319,17 @@ class Model(nn.Module):
 		w_counts = 0 if self.vl_loss_weight == 0 else self._get_word_counts(m)
 
 		# Forward pass on Receiver with the message
+		if self.mode == 'r_t' or self.mode == 'r_d':
+			m = torch.Tensor(m.detach().cpu().numpy())
+			m = m.cuda()
 		r_transform, input_embed_rep_receiver = self.receiver(m) # g(.)
 
 		# Loss calculation
 		loss = 0
-
-		target_receiver = target_receiver.view(batch_size, 1, -1)
+		if self.mode == 'r_t':
+			target_receiver = self.cnn(target).view(batch_size, 1, -1)
+		else:
+			target_receiver = target_receiver.view(batch_size, 1, -1)
 		r_transform = r_transform.view(batch_size, -1, 1)
 
 		target_score = torch.bmm(target_receiver, r_transform).squeeze() #scalar
@@ -367,7 +381,11 @@ class Model(nn.Module):
 			topological_sim = 0
 			posdis = 0
 			bosdis = 0
-
+		if self.mode == 'r_t':
+			vocab_scores_array = target_score
+		elif self.mode == 'r_d':
+			vocab_scores_array = torch.bmm(distractors[0].view(batch_size, 1, -1), r_transform).squeeze()
+		print(vocab_scores_array, self.mode)
 		return (torch.mean(loss),
 			torch.mean(accuracy),
 			m,
