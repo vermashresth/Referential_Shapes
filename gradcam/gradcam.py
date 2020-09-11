@@ -63,13 +63,13 @@ class GradCAM:
         b, c, h, w = input.size()
 
         logit = self.model_arch(input)
-        if class_idx is None:
-            score = logit[:, logit.max(1)[-1]].squeeze()
-        else:
-            score = logit[:, class_idx].squeeze()
+        # if class_idx is None:
+        #     score = logit[:, logit.max(1)[-1]].squeeze()
+        # else:
+        #     score = logit[:, class_idx].squeeze()
 
         self.model_arch.zero_grad()
-        score.backward(retain_graph=retain_graph)
+        logit.sum().backward(retain_graph=retain_graph)
         gradients = self.gradients['value']
         activations = self.activations['value']
         b, k, u, v = gradients.size()

@@ -419,10 +419,9 @@ for batch in valid_data: # or anything else you want to do
   images.extend([torch.Tensor(target.cpu().numpy()[0]*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
                 torch.Tensor(distractors[0].cpu()[0].numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0]),
                 torch.Tensor(heatmap_s),
-                torch.Tensor(heatmap_s_7),
-                torch.Tensor(heatmap_s_6),
-                torch.Tensor(heatmap_s_5)])
+                torch.Tensor(heatmap_r),
+                torch.Tensor(heatmap_r_d)])
   ct+=1
-grid_image = make_grid(images, nrow=6)
+grid_image = make_grid(images, nrow=5)
 img = grid_image.numpy()
 np.save('grid.npy', img)

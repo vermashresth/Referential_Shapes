@@ -37,7 +37,7 @@ class CNN(nn.Module):
 			)
 
 		self.lin = nn.Sequential(
-			nn.Linear(80, n_out_features),
+			nn.Linear(500, n_out_features),
 			nn.ReLU(),
 			)
 
