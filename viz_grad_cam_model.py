@@ -214,7 +214,8 @@ class Model(nn.Module):
 		self.should_train_cnn = should_train_cnn
 		self.n_rsa_samples = n_rsa_samples
 		self.use_distractors_in_sender = use_distractors_in_sender
-
+		self.n_image_features = n_image_features
+		
 		if self.should_train_cnn:
 			self.cnn = CNN(n_image_features)
 		if self.use_distractors_in_sender:

@@ -28,7 +28,7 @@ should_covert_to_words = True#not debugging
 should_dump_indices = True#not debugging
 
 
-EPOCHS = 30 if not debugging else 3
+EPOCHS = 10 if not debugging else 3
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 8
@@ -376,23 +376,23 @@ for batch in valid_data: # or anything else you want to do
   heatmap_s, result = visualize_cam(mask, target)
   model.zero_grad()
 
-  sm = simpleModel(model, distractors, word_counts, 's_d')
+  sm = simpleModel(model, target, word_counts, 's_d')
   sm.eval()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
-  mask, _ = gradcam(target)
-  heatmap_s_d, result = visualize_cam(mask, target)
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+  mask, _ = gradcam(distractors[0])
+  heatmap_s_d, result = visualize_cam(mask, distractors[0])
   model.zero_grad()
 
   sm = simpleModel(model, distractors, word_counts, 'r_t')
   sm.train()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
   mask, _ = gradcam(target)
   heatmap_r, result = visualize_cam(mask, target)
   model.zero_grad()
 
   sm = simpleModel(model, target, word_counts, 'r_d')
   sm.train()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[8])
+  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
   mask, _ = gradcam(distractors[0])
   heatmap_r_d, result = visualize_cam(mask, distractors[0])
 
