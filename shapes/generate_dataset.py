@@ -1,11 +1,11 @@
-from image_utils import *
+from shapes.image_utils import *
 import numpy as np
 from random import shuffle
 from PIL import Image
 import os
 import pickle
 import time
-from bullet_image_utils import get_image as get_image_bullet
+from shapes.bullet_image_utils import get_image as get_image_bullet
 
 def activate_bullet():
 	global get_image

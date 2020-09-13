@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 import os
-from shapes.gen_shapes_smart import return_sizes
+from shapes.size_config import return_sizes
 
 def does_shapes_onehot_metadata_exist(shapes_dataset):
     return (os.path.exists('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset)) and
@@ -17,7 +17,7 @@ def one_hot(a):
 
 def create_shapes_onehot_metadata_smart(shapes_dataset):
     set_names = ['train', 'val', 'test', 'noise']
-    sizes = return_sizes
+    sizes = return_sizes()
     for id, set_name in enumerate(set_names):
 
 

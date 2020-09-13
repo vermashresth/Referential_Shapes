@@ -4,17 +4,13 @@ import numpy as np
 import os
 import pickle
 
-from generate_dataset import *
+from shapes.generate_dataset import *
 
 import argparse
 
-train_size = 7450
-val_size = 827
-test_size = 4050
+from shapes.size_config import return_sizes
 
-def return_sizes():
-    global train_size, val_size, test_size
-    return train_size, val_size, test_size, val_size
+train_size, val_size, test_size, noise_size = return_sizes()
 
 N_TRAIN_TINY    = 1
 N_TRAIN_SMALL = 10
