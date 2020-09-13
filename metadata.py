@@ -1,6 +1,7 @@
 import pickle
 import numpy as np
 import os
+from shapes.gen_shapes_smart import return_sizes
 
 def does_shapes_onehot_metadata_exist(shapes_dataset):
     return (os.path.exists('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset)) and
@@ -13,6 +14,35 @@ def one_hot(a):
     out[np.arange(a.size), a.ravel()] = 1
     out.shape = a.shape + (ncols,)
     return out
+
+def create_shapes_onehot_metadata_smart(shapes_dataset):
+    set_names = ['train', 'val', 'test', 'noise']
+    sizes = return_sizes
+    for id, set_name in enumerate(set_names):
+
+
+        compressed_images = np.zeros((sizes[id], 5))
+
+        for i in range(sizes[id]):
+            m = pickle.load(
+                open('shapes/{}/{}_{}.metadata.p'.format(shapes_dataset, set_name, i), 'rb')
+            )
+            if type(m) is tuple:
+                m = m[0] # Only grab the metadata of the first target (aka, the sender target)
+            pos_h, pos_w = (np.array(m["shapes"]) != None).nonzero()
+            pos_h, pos_w = pos_h[0], pos_w[0]
+            color = m["colors"][pos_h][pos_w]
+            shape = m["shapes"][pos_h][pos_w]
+            size = m["sizes"][pos_h][pos_w]
+            compressed_images[i] = np.array([color, shape, size, pos_h, pos_w])
+
+        compressed_images = compressed_images.astype(np.int)
+
+        one_hot_derivations = one_hot(compressed_images).reshape(
+            compressed_images.shape[0], -1
+        )
+
+        pickle.dump(one_hot_derivations, open('shapes/{}/{}.onehot_metadata.p'.format(shapes_dataset, set_name), 'wb'))
 
 def create_shapes_onehot_metadata(shapes_dataset):
     set_names = ['train.large', 'val', 'test', 'noise']

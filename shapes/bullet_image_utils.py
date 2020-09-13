@@ -1,5 +1,14 @@
+import pybullet as p
+import pybullet_data
+import os
+import time
+GRAVITY = -9.8
+dt = 1e-3
+iters = 2000
+import pybullet_data
+
 import numpy as np
-import cairo
+import matplotlib.pyplot as plt
 
 N_CELLS = 3
 
@@ -16,7 +25,11 @@ SMALL_RADIUS = CELL_WIDTH * .5 / 2
 SHAPE_CIRCLE = 0
 SHAPE_SQUARE = 1
 SHAPE_TRIANGLE = 2
-N_SHAPES = SHAPE_TRIANGLE + 1
+
+SHAPE_SPHERE = 0
+SHAPE_CUBE = 1
+SHAPE_CAPSULE = 2
+N_SHAPES = SHAPE_CAPSULE + 1
 
 SIZE_SMALL = 0
 SIZE_BIG = 1
@@ -26,41 +39,9 @@ COLOR_RED = 0
 COLOR_GREEN = 1
 COLOR_BLUE = 2
 N_COLORS = COLOR_BLUE + 1
-
-
-def draw(shape, color, size, left, top, ctx):
-    center_x = (left + .5) * CELL_WIDTH
-    center_y = (top + .5) * CELL_HEIGHT
-
-    radius = SMALL_RADIUS if size == SIZE_SMALL else BIG_RADIUS
-    radius *= (.9 + np.random.random() * .2)
-
-    if color == COLOR_RED:
-        rgb = np.asarray([1., 0., 0.])
-    elif color == COLOR_GREEN:
-        rgb = np.asarray([0., 1., 0.])
-    else:
-        rgb = np.asarray([0., 0., 1.])
-    rgb += (np.random.random(size=(3,)) * .4 - .2)
-    rgb = np.clip(rgb, 0., 1.)
-
-    #rgb = np.asarray([1., 1., 1.])
-
-    if shape == SHAPE_CIRCLE:
-        ctx.arc(center_x, center_y, radius, 0, 2*np.pi)
-    elif shape == SHAPE_SQUARE:
-        ctx.new_path()
-        ctx.move_to(center_x - radius, center_y - radius)
-        ctx.line_to(center_x + radius, center_y - radius)
-        ctx.line_to(center_x + radius, center_y + radius)
-        ctx.line_to(center_x - radius, center_y + radius)
-    else:
-        ctx.new_path()
-        ctx.move_to(center_x - radius, center_y + radius)
-        ctx.line_to(center_x, center_y - radius)
-        ctx.line_to(center_x + radius, center_y + radius)
-    ctx.set_source_rgb(*rgb)
-    ctx.fill()
+physicsClient = p.connect(p.DIRECT)
+#p.setAdditionalSearchPath('./')
+p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
 class Image:
     def __init__(self, shapes, colors, sizes, data, metadata):
@@ -86,15 +67,8 @@ class Figure:
             self.color,
             self.size)
 
-# def get_image(shape=-1, color=-1, size=-1):
-#     return get_image([Figure(shape, color, size, r=-1, c=-1)])
-
 def get_image(figures):
     data = np.zeros((WIDTH, HEIGHT, 4), dtype=np.uint8)
-    surf = cairo.ImageSurface.create_for_data(data, cairo.FORMAT_ARGB32, WIDTH, HEIGHT)
-    ctx = cairo.Context(surf)
-    ctx.set_source_rgb(0., 0., 0.)
-    ctx.paint()
 
     shapes = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
     colors = [[None for c in range(N_CELLS)] for r in range(N_CELLS)]
@@ -126,12 +100,12 @@ def get_image(figures):
         colors[r][c] = color
         sizes[r][c] = size
 
-        draw(shapes[r][c],
+        data = draw_bullet(shapes[r][c],
             colors[r][c],
             sizes[r][c],
             c,
             r,
-            ctx)
+            data)
 
     metadata = {'shapes':shapes, 'colors':colors, 'sizes':sizes}
 
@@ -139,3 +113,63 @@ def get_image(figures):
     assert len(list(filter(lambda x: not x is None, flat_shapes))) == len(figures)
 
     return Image(shapes, colors, sizes, data, metadata)
+
+def draw_bullet(shape, color, size, r, c, data):
+
+
+    p.resetSimulation()
+    #p.setRealTimeSimulation(True)
+    p.setGravity(0, 9.8, GRAVITY)
+    p.setTimeStep(dt)
+    planeId = p.loadURDF("plane.urdf")
+
+
+    sizes = ['small', 'big']
+    colors = ['red', 'green', 'blue']
+    shapes = ['sphere', 'cube', 'capsule']
+
+
+    sizename = sizes[size]
+    shapename = shapes[shape]
+    colorname = colors[color]
+
+    body_name = 'shapes/bullet_data/my_{}_{}_{}.urdf'.format(shapename, colorname, sizename)
+    if size == 0:
+        factor = 0.5
+    else:
+        factor = 1
+    if shape == 2:
+        body_name = 'shapes/bullet_data/my_{}_{}.urdf'.format(shapename, sizename)
+    z_centre = 0.5*factor
+
+    cubeStartPos = [(r-1), (c-1), z_centre]
+    cubeStartOrientation = p.getQuaternionFromEuler([3.14/2, 0, 0])
+
+    botId = p.loadURDF(body_name, cubeStartPos, cubeStartOrientation)
+    if shape == 2:
+        textureId = p.loadTexture('shapes/bullet_data/{}.png'.format(colorname))
+        p.changeVisualShape(botId, -1, textureUniqueId=textureId)
+
+    viewMatrix = p.computeViewMatrix(
+        cameraEyePosition=[1.5, 1.5, 2],
+        cameraTargetPosition=[0, 0, 0],
+        cameraUpVector=[-1, -1, 1])
+    projectionMatrix = p.computeProjectionMatrixFOV(
+        fov=90.0,
+        aspect=1.0,
+        nearVal=0.1,
+        farVal=30.1)
+
+    import time
+    p.setRealTimeSimulation(1)
+    st = 1500
+
+    p.setGravity(0, 0, GRAVITY)
+
+    width, height, rgbImg, depthImg, segImg = p.getCameraImage(
+        width=64,
+        height=64,
+        viewMatrix=viewMatrix,
+        projectionMatrix=projectionMatrix)
+    data = np.array(rgbImg)
+    return data

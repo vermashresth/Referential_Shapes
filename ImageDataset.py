@@ -63,6 +63,53 @@ class ImageDataset():
     def __len__(self):
         return self.pixels.shape[0]
 
+class ImageDatasetSmart():
+    def __init__(self, base_path, mean=None, std=None):
+        # print("Loaded npy file")
+        one_sample = np.load('{}_{}.input'.format(base_path, 0))
+        self.use_different_targets = self.pixels.shape[0] == 2
+        # print("Calculating mean")
+
+
+        # print("found normalizing values")
+        # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
+
+        self.transforms = torchvision.transforms.Compose([
+            # torchvision.transforms.ToPILImage(),
+            # torchvision.transforms.Resize((128, 128), Image.LINEAR),
+            torchvision.transforms.ToTensor(),
+            # torchvision.transforms.Normalize(self.mean, self.std)
+        ])
+
+    def __getitem__(self, indices):
+        target_idx = indices[0]
+        distractors_idxs = indices[1:]
+
+        distractors = []
+        for d_idx in distractors_idxs:
+            self.d_pixels = np.load('{}_{}.input'.format(base_path, d_idx))
+            if self.use_different_targets:
+                distractors.append(torch.stack(
+                        (
+                        self.transforms(self.d_pixels[0, :, :, :]),
+                        self.transforms(self.d_pixels[1, :, :, :])
+                        ), dim=0)
+                    )
+            else:
+                distractors.append(self.transforms(self.d_pixels))
+        self.t_pixels = np.load('{}_{}.input'.format(base_path, target_idx))
+        if self.use_different_targets:
+            target = torch.stack((
+                    self.transforms(self.t_pixels[0, :, :, :]),
+                    self.transforms(self.t_pixels[1, :, :, :])
+                ), dim=0)
+        else:
+            target = self.transforms(self.t_pixels)
+
+        return (target, distractors, indices)
+
+    def __len__(self):
+        return self.pixels.shape[0]
 
 class ImagesSampler(Sampler):
     def __init__(self, data_source, k, shuffle):

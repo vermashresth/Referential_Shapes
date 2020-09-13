@@ -2,6 +2,14 @@ from image_utils import *
 import numpy as np
 from random import shuffle
 from PIL import Image
+import os
+import pickle
+import time
+from bullet_image_utils import get_image as get_image_bullet
+
+def activate_bullet():
+	global get_image
+	get_image = get_image_bullet
 
 def get_shape_probs():
 	assert N_SHAPES == 3
@@ -44,6 +52,41 @@ def get_color_given_shape_probs(n_colors=3):
 		probs.extend(shape_probs)
 
 	return probs
+
+def get_datasets_smart(train_size, val_size, test_size, f_get_dataset, is_uneven, folder_name):
+	real_sizes = [train_size, val_size, test_size, val_size]
+	paths = ['train','val', 'test', 'noise']
+	if is_uneven:
+		shapes_probs = get_shape_probs()
+		if f_get_dataset is get_dataset_uneven_incomplete or f_get_dataset is get_dataset_uneven_different_targets_row_incomplete:
+			color_given_shape_probs = get_color_given_shape_probs(n_colors=2)
+		else:
+			color_given_shape_probs = get_color_given_shape_probs()
+		for typ, real_size in enumerate(real_sizes):
+			for i in range(real_size):
+				data = f_get_dataset(1, shapes_probs, color_given_shape_probs)[0]
+				has_tuples = type(data) is tuple
+				if not has_tuples:
+					image_data = np.asarray(data.data[:,:,0:3])
+				else:
+					image_data = np.array([data[0].data[:,:,0:3], data[1].data[:,:,0:3]])
+				np.save("{}/{}_{}.input".format(folder_name, paths[typ], i), image_data)
+				pickle.dump(data.metadata, open('{}/{}_{}.metadata.p'.format(folder_name, paths[typ], i), 'wb'))
+
+		return None, None, None, shapes_probs, color_given_shape_probs
+	else:
+		for typ, real_size in enumerate(real_sizes):
+			for i in range(real_size):
+				data = f_get_dataset(1)[0]
+				has_tuples = type(data) is tuple
+				if not has_tuples:
+					image_data = np.asarray(data.data[:,:,0:3])
+				else:
+					image_data = np.array([data[0].data[:,:,0:3], data[1].data[:,:,0:3]])
+				np.save("{}/{}_{}.input".format(folder_name, paths[typ], i), image_data)
+				pickle.dump(data.metadata, open('{}/{}_{}.metadata.p'.format(folder_name, paths[typ], i), 'wb'))
+
+		return None, None, None
 
 def get_datasets(train_size, val_size, test_size, f_get_dataset, is_uneven):
 	if is_uneven:

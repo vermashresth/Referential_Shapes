@@ -38,6 +38,30 @@ def load_images(folder, batch_size, k):
 
 	return train_data, valid_data, test_data, noise_data
 
+def load_images_smart(folder, batch_size, k):
+	train_filename = '{}/train_'.format(folder)
+	valid_filename = '{}/val_'.format(folder)
+	test_filename = '{}/test_'.format(folder)
+	noise_filename = '{}/noise_'.format(folder)
+	train_dataset = ImageDataset(train_filename)
+	valid_dataset = ImageDataset(valid_filename) # All features are normalized with mean and std
+	test_dataset = ImageDataset(test_filename)
+	noise_dataset = ImageDataset(noise_filename)
+
+	train_data = DataLoader(train_dataset, num_workers=1, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
+
+	valid_data = DataLoader(valid_dataset, num_workers=1, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+
+	test_data = DataLoader(test_dataset, num_workers=1, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+
+	noise_data = DataLoader(noise_dataset, num_workers=1, pin_memory=True,
+		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+
+	return train_data, valid_data, test_data, noise_data
+
 
 # This is for loading previously obtained features
 def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
