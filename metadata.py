@@ -73,7 +73,7 @@ def create_shapes_onehot_metadata(shapes_dataset):
         pickle.dump(one_hot_derivations, open('shapes/{}/{}.onehot_metadata.p'.format(shapes_dataset, set_name), 'wb'))
 
 def load_shapes_onehot_metadata(shapes_dataset):
-    train_metadata = pickle.load(open('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset), 'rb'))
+    train_metadata = pickle.load(open('shapes/{}/train.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     val_metadata = pickle.load(open('shapes/{}/val.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     test_metadata = pickle.load(open('shapes/{}/test.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     noise_metadata = pickle.load(open('shapes/{}/noise.onehot_metadata.p'.format(shapes_dataset), 'rb'))

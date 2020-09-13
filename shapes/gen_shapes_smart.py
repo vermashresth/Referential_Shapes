@@ -4,11 +4,11 @@ import numpy as np
 import os
 import pickle
 
-from shapes.generate_dataset import *
+from generate_dataset import *
 
 import argparse
 
-from shapes.size_config import return_sizes
+from size_config import return_sizes
 
 train_size, val_size, test_size, noise_size = return_sizes()
 

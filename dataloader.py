@@ -3,7 +3,7 @@ import numpy as np
 from torch.utils.data import DataLoader
 from torch.utils.data.sampler import BatchSampler
 
-from ImageDataset import ImageDataset, ImageFeaturesDataset, ImagesSampler, ImageFeaturesDatasetZeroShot, ImagesSamplerZeroShot
+from ImageDataset import ImageDataset, ImageDatasetSmart, ImageFeaturesDataset, ImagesSampler, ImageFeaturesDatasetZeroShot, ImagesSamplerZeroShot
 
 def load_dictionaries(folder, vocab_size):
 	with open("data/{}/dict_{}.pckl".format(folder, vocab_size), "rb") as f:
@@ -39,14 +39,14 @@ def load_images(folder, batch_size, k):
 	return train_data, valid_data, test_data, noise_data
 
 def load_images_smart(folder, batch_size, k):
-	train_filename = '{}/train_'.format(folder)
-	valid_filename = '{}/val_'.format(folder)
-	test_filename = '{}/test_'.format(folder)
-	noise_filename = '{}/noise_'.format(folder)
-	train_dataset = ImageDataset(train_filename)
-	valid_dataset = ImageDataset(valid_filename) # All features are normalized with mean and std
-	test_dataset = ImageDataset(test_filename)
-	noise_dataset = ImageDataset(noise_filename)
+	train_filename = '{}/train'.format(folder)
+	valid_filename = '{}/val'.format(folder)
+	test_filename = '{}/test'.format(folder)
+	noise_filename = '{}/noise'.format(folder)
+	train_dataset = ImageDatasetSmart(train_filename)
+	valid_dataset = ImageDatasetSmart(valid_filename) # All features are normalized with mean and std
+	test_dataset = ImageDatasetSmart(test_filename)
+	noise_dataset = ImageDatasetSmart(noise_filename)
 
 	train_data = DataLoader(train_dataset, num_workers=1, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))

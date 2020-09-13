@@ -1,11 +1,11 @@
-from shapes.image_utils import *
+from image_utils import *
 import numpy as np
 from random import shuffle
 from PIL import Image
 import os
 import pickle
 import time
-from shapes.bullet_image_utils import get_image as get_image_bullet
+from bullet_image_utils import get_image as get_image_bullet
 
 def activate_bullet():
 	global get_image
@@ -63,7 +63,10 @@ def get_datasets_smart(train_size, val_size, test_size, f_get_dataset, is_uneven
 		else:
 			color_given_shape_probs = get_color_given_shape_probs()
 		for typ, real_size in enumerate(real_sizes):
-			for i in range(real_size):
+			size_ids = list(range(real_size))
+			for tru_i in range(real_size):
+				i = np.random.choice(size_ids)
+				size_ids.pop(size_ids.index(i))
 				data = f_get_dataset(1, shapes_probs, color_given_shape_probs)[0]
 				has_tuples = type(data) is tuple
 				if not has_tuples:
@@ -76,7 +79,10 @@ def get_datasets_smart(train_size, val_size, test_size, f_get_dataset, is_uneven
 		return None, None, None, shapes_probs, color_given_shape_probs
 	else:
 		for typ, real_size in enumerate(real_sizes):
-			for i in range(real_size):
+			size_ids = list(range(real_size))
+			for tru_i in range(real_size):
+				i = np.random.choice(size_ids)
+				size_ids.pop(size_ids.index(i))
 				data = f_get_dataset(1)[0]
 				has_tuples = type(data) is tuple
 				if not has_tuples:

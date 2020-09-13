@@ -4,6 +4,9 @@ import random
 from torch.utils.data.sampler import Sampler
 import torchvision.transforms
 from PIL import Image
+from shapes.size_config import return_sizes
+
+train_size, val_size, test_size, noise_size = return_sizes()
 
 class ImageDataset():
     def __init__(self, file_name, mean=None, std=None):
@@ -66,11 +69,11 @@ class ImageDataset():
 class ImageDatasetSmart():
     def __init__(self, base_path, mean=None, std=None):
         # print("Loaded npy file")
-        one_sample = np.load('{}_{}.input'.format(base_path, 0))
-        self.use_different_targets = self.pixels.shape[0] == 2
+        one_sample = np.load('{}_{}.input.npy'.format(base_path, 0))
+        self.use_different_targets = one_sample.shape[0] == 2
         # print("Calculating mean")
 
-
+        self.base_path = base_path
         # print("found normalizing values")
         # self.features = (features - self.mean) / (2 * self.std) # Normalize instead using torchvision transforms
 
@@ -87,7 +90,7 @@ class ImageDatasetSmart():
 
         distractors = []
         for d_idx in distractors_idxs:
-            self.d_pixels = np.load('{}_{}.input'.format(base_path, d_idx))
+            self.d_pixels = np.load('{}_{}.input.npy'.format(self.base_path, d_idx))
             if self.use_different_targets:
                 distractors.append(torch.stack(
                         (
@@ -97,7 +100,7 @@ class ImageDatasetSmart():
                     )
             else:
                 distractors.append(self.transforms(self.d_pixels))
-        self.t_pixels = np.load('{}_{}.input'.format(base_path, target_idx))
+        self.t_pixels = np.load('{}_{}.input.npy'.format(self.base_path, target_idx))
         if self.use_different_targets:
             target = torch.stack((
                     self.transforms(self.t_pixels[0, :, :, :]),
@@ -109,7 +112,14 @@ class ImageDatasetSmart():
         return (target, distractors, indices)
 
     def __len__(self):
-        return self.pixels.shape[0]
+        if 'train' in self.base_path:
+            return train_size
+        elif 'val' in self.base_path:
+            return val_size
+        elif 'test' in self.base_path:
+            return test_size
+        elif 'noise' in self.base_path:
+            return noise_size
 
 class ImagesSampler(Sampler):
     def __init__(self, data_source, k, shuffle):
