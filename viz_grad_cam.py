@@ -127,9 +127,6 @@ if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
 
 if not should_train_visual:
-	if use_random_model:
-		cnn_model_file_name = './dumps/random/random_model'
-	else:
 		to_load_model_id = model_id.replace('pre', 'train')
 		to_load_current_model_dir = current_model_dir.replace('pre', 'train')
 		cnn_model_file_name = '{}/{}_{}_model'.format(to_load_current_model_dir, to_load_model_id, EPOCHS - 1)
