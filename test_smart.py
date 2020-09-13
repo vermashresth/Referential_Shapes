@@ -13,7 +13,7 @@ from run import train_one_epoch, evaluate
 from utils import EarlyStopping
 from dataloader import load_dictionaries, load_images_smart, load_pretrained_features
 from build_shapes_dictionaries import *
-from metadata import does_shapes_onehot_metadata_exist, create_shapes_onehot_metadata_smart, load_shapes_onehot_metadata
+from metadata import does_shapes_onehot_metadata_exist_smart, create_shapes_onehot_metadata_smart, load_shapes_onehot_metadata_smart
 from decode import dump_words
 from visual_module import CNN
 from dump_cnn_features import save_features
@@ -214,11 +214,11 @@ if not should_train_visual and not use_symbolic_input and not shapes_dataset is 
 print("crating one hot metadata")
 if not shapes_dataset is None:
 	# Create onehot metadata if not created yet
-	if not does_shapes_onehot_metadata_exist(shapes_dataset):
+	if not does_shapes_onehot_metadata_exist_smart(shapes_dataset):
 		create_shapes_onehot_metadata_smart(shapes_dataset)
 
 	# Load metadata
-	train_metadata, valid_metadata, test_metadata, noise_metadata = load_shapes_onehot_metadata(shapes_dataset)
+	train_metadata, valid_metadata, test_metadata, noise_metadata = load_shapes_onehot_metadata_smart(shapes_dataset)
 else:
 	train_metadata = None
 	valid_metadata = None
