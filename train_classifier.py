@@ -149,7 +149,7 @@ if not shapes_dataset is None:
 	print('Dataset: {} ({})'.format(shapes_dataset, 'symbolic' if use_symbolic_input else 'pixels'))
 else:
 	print('Dataset: mscoco')
-p
+
 #################################################
 
 
@@ -172,52 +172,74 @@ print("data loaded")
 print("creating model")
 cnnmodel = CNN(n_image_features)
 
+import torch.nn as nn
+
 class MyModel(nn.Module):
     def __init__(self, cnn, n_out_features, out_classes):
-        super(Net, self).__init__()
+        super(MyModel, self).__init__()
         self.cnn = cnn
         self.fc = nn.Linear(n_out_features, out_classes)
     def forward(self, x):
-        x = self.conv1(x)
+        x = self.cnn(x)
         x = self.fc(x)
+        # x = nn.Softmax(x)
         return x
 
 out_classes = 18
-model = MyModel(cnnmodel, n_out_features, out_classes)
+model = MyModel(cnnmodel, n_image_features, out_classes)
 
 wandb.watch(model)
 
 print("model created")
-if use_gpu:
-	model = model.cuda()
-print("model moved to gpu")
+# if use_gpu:
+# 	model = model.cuda()
+# print("model moved to gpu")
 
 
 import torch.optim as optim
 
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(net.parameters(), lr=0.001, momentum=0.9)
+optimizer = optim.SGD(model.parameters(), lr=0.001, momentum=0.9)
 
-for epoch in range(2):  # loop over the dataset multiple times
+for epoch in range(5):  # loop over the dataset multiple times
 
     running_loss = 0.0
-    for (i, data), labels in zip(enumerate(trainloader, 0):
+    running_acc = 0
+    for i, data in enumerate(train_data) :
         # get the inputs; data is a list of [inputs, labels]
-
+        target, distractors, idx = data
+        labels = torch.Tensor(np.array(train_metadata[idx[:,0]]).astype(int))
+        labels = labels.type(torch.LongTensor)
 
         # zero the parameter gradients
         optimizer.zero_grad()
 
         # forward + backward + optimize
-        outputs = net(inputs)
+        outputs = model(target)
         loss = criterion(outputs, labels)
         loss.backward()
         optimizer.step()
 
+        probs = nn.functional.softmax(outputs)
+        _,pred = probs.max(-1)
+        acc = sum(labels.detach().numpy()==pred.detach().numpy())/labels.size(0)
         # print statistics
+
         running_loss += loss.item()
-        if i % 2000 == 1999:    # print every 2000 mini-batches
-            print('[%d, %5d] loss: %.3f' %
-                  (epoch + 1, i + 1, running_loss / 2000))
+        if i % 25 == 0:    # print every 2000 mini-batches
+            print('[%d, %5d] loss: %.3f acc %.3f' %
+                  (epoch + 1, i + 1, running_loss/25,acc ))
             running_loss = 0.0
-            
+            for val_data in valid_data:
+                  target, distractors, idx = val_data
+                  labels = torch.Tensor(np.array(valid_metadata[idx[:,0]]).astype(int))
+                  labels = labels.type(torch.LongTensor)
+                  model.eval()
+                  # forward + backward + optimize
+                  outputs = model(target)
+                  probs = nn.functional.softmax(outputs)
+                  _,pred = probs.max(-1)
+                  acc = sum(labels.detach().numpy()==pred.detach().numpy())/labels.size(0)
+                  print("eval acc ", acc)
+                  break
+            model.train()

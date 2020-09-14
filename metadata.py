@@ -86,7 +86,7 @@ def create_shapes_classdata(shapes_dataset):
 
     for set_name in set_names:
         meta = pickle.load(
-            open('shapes/{}/{}.classdata.p'.format(shapes_dataset, set_name), 'rb')
+            open('shapes/{}/{}.metadata.p'.format(shapes_dataset, set_name), 'rb')
         )
 
         compressed_images = np.zeros((len(meta), 5))
@@ -108,7 +108,7 @@ def create_shapes_classdata(shapes_dataset):
             compressed_images.shape[0], -1
         )
 
-        pickle.dump(one_hot_derivations, open('shapes/{}/{}.classdata.p'.format(shapes_dataset, set_name), 'wb'))
+        pickle.dump(img_classes, open('shapes/{}/{}.classdata.p'.format(shapes_dataset, set_name), 'wb'))
 
 def load_shapes_onehot_metadata(shapes_dataset):
     train_metadata = pickle.load(open('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset), 'rb'))
