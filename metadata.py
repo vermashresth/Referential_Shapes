@@ -12,6 +12,11 @@ def does_shapes_onehot_metadata_exist_smart(shapes_dataset):
         os.path.exists('shapes/{}/val.onehot_metadata.p'.format(shapes_dataset)) and
         os.path.exists('shapes/{}/test.onehot_metadata.p'.format(shapes_dataset)))
 
+def does_shapes_classdata_exist(shapes_dataset):
+    return (os.path.exists('shapes/{}/train.large.classdata.p'.format(shapes_dataset)) and
+        os.path.exists('shapes/{}/val.classdata.p'.format(shapes_dataset)) and
+        os.path.exists('shapes/{}/test.classdata.p'.format(shapes_dataset)))
+
 def one_hot(a):
     ncols = a.max() + 1
     out = np.zeros((a.size, ncols), dtype=np.uint8)
@@ -76,6 +81,35 @@ def create_shapes_onehot_metadata(shapes_dataset):
 
         pickle.dump(one_hot_derivations, open('shapes/{}/{}.onehot_metadata.p'.format(shapes_dataset, set_name), 'wb'))
 
+def create_shapes_classdata(shapes_dataset):
+    set_names = ['train.large', 'val', 'test', 'noise']
+
+    for set_name in set_names:
+        meta = pickle.load(
+            open('shapes/{}/{}.classdata.p'.format(shapes_dataset, set_name), 'rb')
+        )
+
+        compressed_images = np.zeros((len(meta), 5))
+        img_classes = np.zeros(len(meta))
+        for i, m in enumerate(meta):
+            if type(m) is tuple:
+                m = m[0] # Only grab the metadata of the first target (aka, the sender target)
+            pos_h, pos_w = (np.array(m["shapes"]) != None).nonzero()
+            pos_h, pos_w = pos_h[0], pos_w[0]
+            color = m["colors"][pos_h][pos_w]
+            shape = m["shapes"][pos_h][pos_w]
+            size = m["sizes"][pos_h][pos_w]
+            compressed_images[i] = np.array([color, shape, size, pos_h, pos_w])
+            class_id = color + 3*shape + 9*size
+            img_classes[i] = class_id
+        compressed_images = compressed_images.astype(np.int)
+
+        one_hot_derivations = one_hot(compressed_images).reshape(
+            compressed_images.shape[0], -1
+        )
+
+        pickle.dump(one_hot_derivations, open('shapes/{}/{}.classdata.p'.format(shapes_dataset, set_name), 'wb'))
+
 def load_shapes_onehot_metadata(shapes_dataset):
     train_metadata = pickle.load(open('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset), 'rb'))
     val_metadata = pickle.load(open('shapes/{}/val.onehot_metadata.p'.format(shapes_dataset), 'rb'))
@@ -83,6 +117,15 @@ def load_shapes_onehot_metadata(shapes_dataset):
     noise_metadata = pickle.load(open('shapes/{}/noise.onehot_metadata.p'.format(shapes_dataset), 'rb'))
 
     return train_metadata, val_metadata, test_metadata, noise_metadata
+
+def load_shapes_classdata(shapes_dataset):
+    train_metadata = pickle.load(open('shapes/{}/train.large.classdata.p'.format(shapes_dataset), 'rb'))
+    val_metadata = pickle.load(open('shapes/{}/val.classdata.p'.format(shapes_dataset), 'rb'))
+    test_metadata = pickle.load(open('shapes/{}/test.classdata.p'.format(shapes_dataset), 'rb'))
+    noise_metadata = pickle.load(open('shapes/{}/noise.classdata.p'.format(shapes_dataset), 'rb'))
+
+    return train_metadata, val_metadata, test_metadata, noise_metadata
+
 
 def load_shapes_onehot_metadata_smart(shapes_dataset):
     train_metadata = pickle.load(open('shapes/{}/train.onehot_metadata.p'.format(shapes_dataset), 'rb'))

@@ -42,6 +42,10 @@ elif dataset_type == 3: # Uneven,  diff pos
     dataset_name = 'uneven-diffpos'
     f_generate_dataset = get_dataset_uneven_different_targets_row_incomplete
 elif dataset_type == 4: #
+    shapes_dataset = 'get_dataset_balanced_zero_shot_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)
+    dataset_name = 'zero-shot'
+    f_generate_dataset = get_dataset_balanced_zero_shot
+else:
     print("Not Supported type")
 
 if __name__ == "__main__":
