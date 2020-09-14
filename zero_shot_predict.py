@@ -28,7 +28,7 @@ should_covert_to_words = True#not debugging
 should_dump_indices = True#not debugging
 
 
-EPOCHS = 2 if not debugging else 3
+EPOCHS = 3 if not debugging else 3
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 8
@@ -132,10 +132,14 @@ current_model_dir = '{}/{}'.format(dumps_dir, model_id)
 
 if should_dump and not os.path.exists(current_model_dir):
 	os.mkdir(current_model_dir)
-
+learnt_random_model = None
 if not should_train_visual:
 	if use_random_model:
 		cnn_model_file_name = './dumps/random/random_model'
+		learnt_random_model = '{}/{}_{}_model'.format(current_model_dir,model_id, EPOCHS - 1)
+    learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
+    learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
+
 	else:
 		to_load_model_id = model_id.replace('pre', 'train')
 		to_load_model_id = to_load_model_id.replace(dataset_name, pretrain_dataset_name)
@@ -275,6 +279,8 @@ model = Model(n_image_features, vocab_size,
 	should_train_visual, rsa_sampling,
 	use_gpu, K, use_distractors_in_sender)
 
+if learnt_random_model is not None:
+  model_file_name = learnt_random_model
 # Load model to evaluate
 state = torch.load(model_file_name, map_location= lambda storage, location: storage)
 without_cnn_state = {k:v for k,v in state.items() if not 'cnn' in k}

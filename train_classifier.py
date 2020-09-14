@@ -191,6 +191,15 @@ model = MyModel(cnnmodel, n_image_features, out_classes)
 wandb.watch(model)
 
 print("model created")
+cnn_model_file_name = None
+if only_eval:
+    cnn_state = torch.load(cnn_model_file_name)
+    cnn_state = {k[4:]:v for k,v in cnn_state.items() if 'cnn' in k}
+    fc_state = torch.load('my_classifier_model')
+    fc_state = {k:v for k,v in fc_state if 'fc' in k}
+    model.cnn = model.cnn.load_state_dict(cnn_state)
+    model.fc = model.fc.load_state_dict(fc_state)
+
 # if use_gpu:
 # 	model = model.cuda()
 # print("model moved to gpu")
@@ -207,6 +216,8 @@ for epoch in range(5):  # loop over the dataset multiple times
     running_acc = 0
     for i, data in enumerate(train_data) :
         # get the inputs; data is a list of [inputs, labels]
+        if only_eval:
+            model.eval()
         target, distractors, idx = data
         labels = torch.Tensor(np.array(train_metadata[idx[:,0]]).astype(int))
         labels = labels.type(torch.LongTensor)
@@ -243,3 +254,4 @@ for epoch in range(5):  # loop over the dataset multiple times
                   print("eval acc ", acc)
                   break
             model.train()
+torch.save(model.state_dict(), 'my_classifier_model')
