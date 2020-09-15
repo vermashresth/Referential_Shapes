@@ -121,7 +121,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed-{}_pop-{}_K-{}_repr-{}_distractor-aware-{}_bullet-{}_data-{}_noise-{}'.format(seed,pop_size, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
+model_id = 'seed-{}_pop-{}_K-{}_repr-{}_distractor-aware-{}_bullet-{}_data-{}_noise-{}'.format(seed,pop_size, K, repr, use_distractors_in_sender,use_bullet, dataset_name, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
