@@ -431,17 +431,17 @@ for epoch in range(EPOCHS):
 			torch.save(model.state_dict(), '{}/{}_{}_model'.format(wandb.run.dir, model_id, e))
 
 		# Dump messages every epoch
-		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		# pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		# pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 		# Dump indices as often as messages
-		if should_dump_indices:
-			pickle.dump(indices, open('{}/{}_{}_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
-			pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
-
-		if should_covert_to_words:
-			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
-			dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
+		# if should_dump_indices:
+		# 	pickle.dump(indices, open('{}/{}_{}_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
+		# 	pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
+		#
+		# if should_covert_to_words:
+		# 	dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
+		# 	dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
 
 	# if es.is_converged:
 	# 	print("Converged in epoch {}".format(e))
@@ -526,20 +526,20 @@ if should_evaluate_best:
 	print()
 	print('Test accuracy: {}'.format(test_acc_meter.avg))
 
-	if should_dump:
-		pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_rsa_sr_meter, open('{}/{}_{}_test_rsa_sr_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_rsa_si_meter, open('{}/{}_{}_test_rsa_si_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_rsa_ri_meter, open('{}/{}_{}_test_rsa_ri_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_topological_sim_meter, open('{}/{}_{}_test_topological_sim_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_language_entropy_meter, open('{}/{}_{}_test_language_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-		pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-
-		if should_dump_indices:
-			pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-
-		if should_covert_to_words:
-			dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))
+	# if should_dump:
+	# 	pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_rsa_sr_meter, open('{}/{}_{}_test_rsa_sr_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_rsa_si_meter, open('{}/{}_{}_test_rsa_si_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_rsa_ri_meter, open('{}/{}_{}_test_rsa_ri_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_topological_sim_meter, open('{}/{}_{}_test_topological_sim_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_language_entropy_meter, open('{}/{}_{}_test_language_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	# 	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	#
+	# 	if should_dump_indices:
+	# 		pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+	#
+	# 	if should_covert_to_words:
+	# 		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))

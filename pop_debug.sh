@@ -1,8 +1,9 @@
 apt-get install python3-cairo
+pip install pybullet
 
 mkdir data
 mkdir data/shapes
-
+dataset_type=0
 pop_size=1
 while [ $pop_size -le 10 ]
 do
@@ -20,12 +21,12 @@ do
  ((pop_size++))
 done
 
-
+dataset_type=0
 pop_size=1
+python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet 1
 while [ $pop_size -le 10 ]
 do
  seed=0
- python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet
  while [ $seed -le 1 ]
  do
   python pop_test.py --seed $seed --K 1 --pop_size $pop_size --use_bullet --use_distractors_in_sender

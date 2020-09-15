@@ -167,8 +167,8 @@ def draw_bullet(shape, color, size, r, c, data):
     p.setGravity(0, 0, GRAVITY)
 
     width, height, rgbImg, depthImg, segImg = p.getCameraImage(
-        width=64,
-        height=64,
+        width=30,
+        height=30,
         viewMatrix=viewMatrix,
         projectionMatrix=projectionMatrix)
     data = np.array(rgbImg)
