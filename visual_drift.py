@@ -49,6 +49,7 @@ seed = 42
 use_symbolic_input = False
 noise_strength = 0
 use_distractors_in_sender = False
+freeze = False
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -61,6 +62,7 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+cmd_parser.add_argument('--freeze', action='store_true', default=freeze)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -85,6 +87,7 @@ use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
+freeze = cmd_args.freeze
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -258,17 +261,17 @@ model = Model(n_image_features, vocab_size,
 state = torch.load('my_classifier_model')
 cnn_state = {k[4:]:v for k,v in state.items() if 'cnn' in k}
 
-trained_cnn.load_state_dict(cnn_state)
-
-model = Model(n_image_features, vocab_size,
-	EMBEDDING_DIM, HIDDEN_SIZE,
-	bound_idx, max_sentence_length,
-	vl_loss_weight, bound_weight,
-	should_train_visual, rsa_sampling,
-	use_gpu, K, use_distractors_in_sender)
+model.cnn.load_state_dict(cnn_state)
+#
+# model = Model(n_image_features, vocab_size,
+# 	EMBEDDING_DIM, HIDDEN_SIZE,
+# 	bound_idx, max_sentence_length,
+# 	vl_loss_weight, bound_weight,
+# 	should_train_visual, rsa_sampling,
+# 	use_gpu, K, use_distractors_in_sender)
 wandb.watch(model)
 
-model.load_state_dict(cnn_state)
+# model.load_state_dict(cnn_state)
 
 if freeze:
     for param in model.cnn.parameters():

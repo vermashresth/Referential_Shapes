@@ -49,6 +49,7 @@ seed = 42
 use_symbolic_input = False
 noise_strength = 0
 use_distractors_in_sender = False
+only_eval = False
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -61,6 +62,8 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+cmd_parser.add_argument('--only_eval', action='store_true', default=only_eval)
+
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -85,6 +88,7 @@ use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
+only_eval = cmd_args.only_eval
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -191,14 +195,17 @@ model = MyModel(cnnmodel, n_image_features, out_classes)
 wandb.watch(model)
 
 print("model created")
-cnn_model_file_name = None
+cnn_model_file_name = 'dumps/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0_9_model'
 if only_eval:
     cnn_state = torch.load(cnn_model_file_name)
     cnn_state = {k[4:]:v for k,v in cnn_state.items() if 'cnn' in k}
     fc_state = torch.load('my_classifier_model')
-    fc_state = {k:v for k,v in fc_state if 'fc' in k}
-    model.cnn = model.cnn.load_state_dict(cnn_state)
-    model.fc = model.fc.load_state_dict(fc_state)
+    for k,v in fc_state.items():
+        if 'fc' in k:
+          print(k)
+    fc_state = {k[3:]:v for k,v in fc_state.items() if 'fc' in k}
+    model.cnn.load_state_dict(cnn_state)
+    model.fc.load_state_dict(fc_state)
 
 # if use_gpu:
 # 	model = model.cuda()
@@ -228,8 +235,9 @@ for epoch in range(5):  # loop over the dataset multiple times
         # forward + backward + optimize
         outputs = model(target)
         loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
+        if not only_eval:
+          loss.backward()
+          optimizer.step()
 
         probs = nn.functional.softmax(outputs)
         _,pred = probs.max(-1)
@@ -253,5 +261,6 @@ for epoch in range(5):  # loop over the dataset multiple times
                   acc = sum(labels.detach().numpy()==pred.detach().numpy())/labels.size(0)
                   print("eval acc ", acc)
                   break
-            model.train()
+            if not only_eval:
+              model.train()
 torch.save(model.state_dict(), 'my_classifier_model')
