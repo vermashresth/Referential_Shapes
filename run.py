@@ -52,7 +52,10 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 								distractors,
 								w_counts,
 								onehot_metadata[idxs[:,0]] if onehot_metadata is not None else None)
-
+		try:
+			model.shuffle_pair()
+		except:
+			pass
 		loss_meter.update(loss.item())
 		acc_meter.update(acc.item())
 		entropy_meter.update(entropy.item())

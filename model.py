@@ -401,6 +401,7 @@ class ModelPop(nn.Module):
 		self.should_train_cnn = should_train_cnn
 		self.n_rsa_samples = n_rsa_samples
 		self.use_distractors_in_sender = use_distractors_in_sender
+		self.pop_size = pop_size
 
 		if self.should_train_cnn:
 			self.cnn = CNN(n_image_features)
@@ -416,8 +417,8 @@ class ModelPop(nn.Module):
 		self.shuffle_pair()
 
 	def shuffle_pair(self):
-		self.sender = self.senders[np.random.choice(pop_size)]
-		self.receiver = self.receivers[np.random.choice(pop_size)]
+		self.sender = self.senders[np.random.choice(self.pop_size)]
+		self.receiver = self.receivers[np.random.choice(self.pop_size)]
 
 	def _pad(self, m, seq_lengths):
 		max_len = m.shape[1]

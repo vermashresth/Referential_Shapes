@@ -4,8 +4,7 @@ import numpy as np
 import os
 import pickle
 
-from generate_dataset import *
-from image_utils import *
+
 
 import argparse
 
@@ -17,13 +16,24 @@ N_TRAIN_ALL     = N_TRAIN_MED
 
 noise_strength = 0
 dataset_type = 0
+use_bullet = 0
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
+cmd_parser.add_argument('--use_bullet', type=int, default=use_bullet)
+
 cmd_args = cmd_parser.parse_args()
 
 noise_strength = cmd_args.noise_strength
 dataset_type = cmd_args.dataset_type
+use_bullet = cmd_args.use_bullet
+if not use_bullet:
+    from generate_dataset import *
+    from image_utils import *
+else:
+    from generate_dataset import *
+    activate_bullet()
+    from bullet_image_utils import *
 
 if dataset_type == 0: # Even, same pos
     shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_{}_{}'.format(noise_strength, N_CELLS, N_CELLS)

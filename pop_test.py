@@ -28,7 +28,7 @@ should_covert_to_words = True#not debugging
 should_dump_indices = True#not debugging
 
 
-EPOCHS = 60 if not debugging else 3
+EPOCHS = 15 if not debugging else 3
 EMBEDDING_DIM = 256
 HIDDEN_SIZE = 512
 BATCH_SIZE = 128 if not debugging else 8
@@ -51,6 +51,7 @@ noise_strength = 0
 use_distractors_in_sender = False
 
 pop_size = 10
+use_bullet = False
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -61,8 +62,10 @@ cmd_parser.add_argument('--vl_loss_weight', type=float, default=vl_loss_weight)
 cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
+cmd_parser.add_argument('--pop_size', type=int, default=pop_size)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
 cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+cmd_parser.add_argument('--use_bullet', action='store_true', default=use_bullet)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -87,6 +90,8 @@ use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
+pop_size = cmd_args.pop_size
+use_bullet = cmd_args.use_bullet
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -116,7 +121,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
+model_id = 'seed-{}_pop-{}_K-{}_repr-{}_distractor-aware-{}_bullet-{}_data-{}_noise-{}'.format(seed,pop_size, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -368,6 +373,7 @@ for epoch in range(EPOCHS):
 	eval_posdis_meter,
 	eval_bosdis_meter,
 	eval_lang_entropy_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
+
 	model.shuffle_pair()
 	eval_losses_meters.append(eval_loss_meter)
 	eval_accuracy_meters.append(eval_acc_meter)
@@ -396,7 +402,7 @@ for epoch in range(EPOCHS):
 	_,
 	_) = evaluate(model, noise_data, eval_word_counts, noise_metadata, debugging)
 	noise_accuracy_meters.append(noise_acc_meter)
-
+	model.shuffle_pair()
 	print('Epoch {}, average train loss: {}, average val loss: {} \n average accuracy: {}, average val accuracy: {}, average noise accuracy: {} \n'.format(
 		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg, noise_accuracy_meters[e].avg))
 	if rsa_sampling > 0:
@@ -420,8 +426,9 @@ for epoch in range(EPOCHS):
 
 	if should_dump:
 		# Save model every epoch
-		torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
-		torch.save(model.state_dict(), '{}/{}_{}_model'.format(wandb.run.dir, model_id, e))
+		if e%5==0 or e>=EPOCHS-1:
+			torch.save(model.state_dict(), '{}/{}_{}_model'.format(current_model_dir, model_id, e))
+			torch.save(model.state_dict(), '{}/{}_{}_model'.format(wandb.run.dir, model_id, e))
 
 		# Dump messages every epoch
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
@@ -451,26 +458,26 @@ if is_loss_nan:
 	should_dump = False
 	should_evaluate_best = False
 
-if should_dump:
-	# Dump latest stats
-	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(language_entropy_meters, open('{}/{}_{}_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_language_entropy_meters, open('{}/{}_{}_eval_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# if should_dump:
+	# # Dump latest stats
+	# pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(language_entropy_meters, open('{}/{}_{}_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+	# pickle.dump(eval_language_entropy_meters, open('{}/{}_{}_eval_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 # Evaluate best model on test data
