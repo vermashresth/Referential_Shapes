@@ -20,7 +20,7 @@ def load_images(folder, batch_size, k):
 	test_filename = '{}/test.input.npy'.format(folder)
 	noise_filename = '{}/noise.input.npy'.format(folder)
 	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
-    val_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
+    valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
     test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
     noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
 
@@ -88,17 +88,22 @@ def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
 	test_dataset = ImageFeaturesDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 	noise_dataset = ImageFeaturesDataset(noise_features, mean=train_dataset.mean, std=train_dataset.std)
 
+	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
+    valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
+    test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
+    noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
+
 	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, train_metadata, k, shuffle=True), batch_size=batch_size, drop_last=False))
 
 	valid_data = DataLoader(valid_dataset, num_workers=8, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, valid_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	test_data = DataLoader(test_dataset, num_workers=8, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, test_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	noise_data = DataLoader(noise_dataset, num_workers=8, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, noise_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	return n_image_features, train_data, valid_data, test_data, noise_data
 
@@ -118,6 +123,10 @@ def load_pretrained_features_zero_shot(target_folder, distractors_folder, batch_
 
 	assert target_valid_features.shape[-1] == distractors_valid_features.shape[-1]
 
+	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
+    valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
+    test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
+    noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
 
 	train_dataset = ImageFeaturesDatasetZeroShot(target_train_features, distractors_train_features)
 	valid_dataset = ImageFeaturesDatasetZeroShot(target_valid_features, distractors_valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std

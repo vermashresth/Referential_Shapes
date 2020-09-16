@@ -146,8 +146,6 @@ class ImagesSampler(Sampler):
                     distractors[id] = random.sample(range(self.n), 1)
 
             arr[1:] = np.array(distractors)
-            for d in distractors:
-
 
             indices.append(arr)
 
