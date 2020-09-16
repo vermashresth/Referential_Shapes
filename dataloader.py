@@ -19,22 +19,27 @@ def load_images(folder, batch_size, k):
 	valid_filename = '{}/val.input.npy'.format(folder)
 	test_filename = '{}/test.input.npy'.format(folder)
 	noise_filename = '{}/noise.input.npy'.format(folder)
+	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
+    val_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
+    test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
+    noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
+
 	train_dataset = ImageDataset(train_filename)
 	valid_dataset = ImageDataset(valid_filename, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
 	test_dataset = ImageDataset(test_filename, mean=train_dataset.mean, std=train_dataset.std)
 	noise_dataset = ImageDataset(noise_filename, mean=train_dataset.mean, std=train_dataset.std)
 
 	train_data = DataLoader(train_dataset, num_workers=1, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(train_dataset, k, shuffle=True), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(train_dataset, train_metadata, k, shuffle=True), batch_size=batch_size, drop_last=False))
 
 	valid_data = DataLoader(valid_dataset, num_workers=1, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(valid_dataset, valid_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	test_data = DataLoader(test_dataset, num_workers=1, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(test_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(test_dataset, test_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	noise_data = DataLoader(noise_dataset, num_workers=1, pin_memory=True,
-		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, k, shuffle=False), batch_size=batch_size, drop_last=False))
+		batch_sampler=BatchSampler(ImagesSampler(noise_dataset, noise_metadata, k, shuffle=False), batch_size=batch_size, drop_last=False))
 
 	return train_data, valid_data, test_data, noise_data
 

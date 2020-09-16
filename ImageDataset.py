@@ -122,10 +122,11 @@ class ImageDatasetSmart():
             return noise_size
 
 class ImagesSampler(Sampler):
-    def __init__(self, data_source, k, shuffle):
+    def __init__(self, data_source, meta_source, k, shuffle):
         self.n = len(data_source)
         self.k = k
         self.shuffle = shuffle
+        self.meta_source = meta_source
         assert self.k < self.n
 
     def __iter__(self):
@@ -140,9 +141,13 @@ class ImagesSampler(Sampler):
             arr = np.zeros(self.k + 1, dtype=int) # distractors + target
             arr[0] = t
             distractors = random.sample(range(self.n), self.k)
-            while t in distractors:
-                distractors = random.sample(range(self.n), self.k)
+            for id, d in enumerate(distractors):
+                while np.array_equal(self.meta_source[t],self.meta_source[distractors[id]]):
+                    distractors[id] = random.sample(range(self.n), 1)
+
             arr[1:] = np.array(distractors)
+            for d in distractors:
+
 
             indices.append(arr)
 
