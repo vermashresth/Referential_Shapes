@@ -69,7 +69,7 @@ def load_images_smart(folder, batch_size, k):
 
 
 # This is for loading previously obtained features
-def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
+def load_pretrained_features(folder,shapes_dataset, batch_size, k, use_symbolic=False):
 	if use_symbolic:
 		train_features = np.load('{}/train.large.onehot_metadata.p'.format(folder)).astype(np.float32)
 		valid_features = np.load('{}/val.onehot_metadata.p'.format(folder)).astype(np.float32)
@@ -88,10 +88,10 @@ def load_pretrained_features(folder, batch_size, k, use_symbolic=False):
 	test_dataset = ImageFeaturesDataset(test_features, mean=train_dataset.mean, std=train_dataset.std)
 	noise_dataset = ImageFeaturesDataset(noise_features, mean=train_dataset.mean, std=train_dataset.std)
 
-	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
-	valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
-	test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
-	noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
+	train_metadata = pickle.load(open('shapes/{}/train.large.onehot_metadata.p'.format(shapes_dataset), 'rb'))
+	valid_metadata = pickle.load(open('shapes/{}/val.onehot_metadata.p'.format(shapes_dataset), 'rb'))
+	test_metadata = pickle.load(open('shapes/{}/test.onehot_metadata.p'.format(shapes_dataset), 'rb'))
+	noise_metadata = pickle.load(open('shapes/{}/noise.onehot_metadata.p'.format(shapes_dataset), 'rb'))
 
 	train_data = DataLoader(train_dataset, num_workers=8, pin_memory=True,
 		batch_sampler=BatchSampler(ImagesSampler(train_dataset, train_metadata, k, shuffle=True), batch_size=batch_size, drop_last=False))

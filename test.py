@@ -48,7 +48,7 @@ rsa_sampling = 50
 seed = 42
 use_symbolic_input = False
 noise_strength = 0
-use_distractors_in_sender = False
+use_distractors_in_sender = 0
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -63,7 +63,7 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--use_bullet', type=int, default=0)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
-cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+cmd_parser.add_argument('--use_distractors_in_sender', type=int, default=use_distractors_in_sender)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -140,7 +140,7 @@ if not should_train_visual:
 
 starting_epoch = 0
 
-wandb.init(project="referential-shapes", name=model_id)
+wandb.init(project="referential-shapes-clean", name=model_id)
 
 wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
@@ -238,7 +238,7 @@ if not shapes_dataset is None:
 			train_data, valid_data, test_data, noise_data = load_images('shapes/{}'.format(shapes_dataset), BATCH_SIZE, K)
 		else:
 			n_pretrained_image_features, train_data, valid_data, test_data, noise_data = load_pretrained_features(
-				features_folder_name, BATCH_SIZE, K)
+				features_folder_name, shapes_dataset, BATCH_SIZE, K)
 			assert n_pretrained_image_features == n_image_features
 	else:
 		n_image_features, train_data, valid_data, test_data, noise_data= load_pretrained_features(
