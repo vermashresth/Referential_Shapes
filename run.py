@@ -3,6 +3,7 @@ import torch
 import torch.nn as nn
 import time
 import numpy as np
+import wandb
 
 def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 	is_training_mode = not optimizer is None
@@ -52,6 +53,14 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging):
 								distractors,
 								w_counts,
 								onehot_metadata[idxs[:,0]] if onehot_metadata is not None else None)
+		if model.training:
+			wandb.log({'Train loss': loss.item(),  'average accuracy': acc.item()}, commit=False)
+			wandb.log({'RSA sender-receiver': rsa_sr, 'RSA sender-input': rsa_si, 'RSA receiver-input':rsa_ri}, commit=False)
+			wandb.log({'Topological sim':topological_sim, 'Posdis':posdis, 'Bosdis':bosdis}, commit=True)
+			# wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg})
+			# wandb.log({'Eval Topological sim':eval_topological_sim_meter.avg, 'Eval Posdis':eval_posdis_meter.avg, 'Eval Bosdis':eval_bosdis_meter.avg})
+		# else:
+		# 	wandb.log({'average noise accuracy': acc.item()}, commit=True)
 		try:
 			model.shuffle_pair()
 		except:
