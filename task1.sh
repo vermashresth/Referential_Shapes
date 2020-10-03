@@ -49,15 +49,20 @@ do
   mkdir data
   mkdir data/shapes
   python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet $use_bullet
+  python shapes/gen_shapes.py --dataset_type 4 --noise_strength 0 --use_bullet $use_bullet
 
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
   python random_model_gen.py
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_random_model 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --use_random_model 1 --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
   rm -r data
   rm -r dumps
   python shapes/delete_script.py --dataset_type $dataset_type
+  python shapes/delete_script.py --dataset_type 4
   ((seed++))
  done
  ((dataset_type++))
@@ -78,15 +83,20 @@ do
   mkdir data
   mkdir data/shapes
   python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet $use_bullet
+  python shapes/gen_shapes.py --dataset_type 4 --noise_strength 0 --use_bullet $use_bullet
 
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
   python random_model_gen.py
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_random_model 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --use_random_model 1 --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
   rm -r data
   rm -r dumps
   python shapes/delete_script.py --dataset_type $dataset_type
+  python shapes/delete_script.py --dataset_type 4
   ((seed++))
  done
  ((dataset_type++))
@@ -107,15 +117,20 @@ do
   mkdir data
   mkdir data/shapes
   python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet $use_bullet
+  python shapes/gen_shapes.py --dataset_type 4 --noise_strength 0 --use_bullet $use_bullet
 
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
   python random_model_gen.py
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_random_model 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --use_random_model 1 --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
   rm -r data
   rm -r dumps
   python shapes/delete_script.py --dataset_type $dataset_type
+  python shapes/delete_script.py --dataset_type 4
   ((seed++))
  done
  ((dataset_type++))
@@ -135,15 +150,20 @@ do
   mkdir data
   mkdir data/shapes
   python shapes/gen_shapes.py --dataset_type $dataset_type --noise_strength 0 --use_bullet $use_bullet
+  python shapes/gen_shapes.py --dataset_type 4 --noise_strength 0 --use_bullet $use_bullet
 
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
   python random_model_gen.py
   python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_random_model 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+  python zero_shot_predict.py --dataset_type 4 --pretrain_dataset_type $dataset_type --use_random_model 1 --seed $seed --K 1 --noise_strength 0  --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
   rm -r data
   rm -r dumps
   python shapes/delete_script.py --dataset_type $dataset_type
+  python shapes/delete_script.py --dataset_type 4
   ((seed++))
  done
  ((dataset_type++))

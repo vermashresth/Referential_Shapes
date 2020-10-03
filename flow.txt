@@ -1,0 +1,9 @@
+task 1: noise acc of general training regimes
+instuctions: run debug.sh
+	subtask: compare between distractr aware and sitractor agnostic : use flag  (2)
+	dataset subtask: bullet or shapes (2)
+	preassure subtask: location invariance(2)
+	train mode : pretraining: yes or no or random (3)
+	
+
+task 2: 

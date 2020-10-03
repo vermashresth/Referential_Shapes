@@ -49,7 +49,7 @@ rsa_sampling = 50
 seed = 42
 use_symbolic_input = False
 noise_strength = 0
-use_distractors_in_sender = False
+use_distractors_in_sender = 0
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -62,7 +62,9 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--pretrain_dataset_type', type=int, default=pretrain_dataset_type)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
-cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+cmd_parser.add_argument('--use_distractors_in_sender', type=int, default=use_distractors_in_sender)
+cmd_parser.add_argument('--use_bullet', type=int, default=0)
+cmd_parser.add_argument('--epochs', type=int, default=EPOCHS)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -88,6 +90,8 @@ use_random_model = cmd_args.use_random_model
 rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
+use_bullet = cmd_args.use_bullet
+EPOCHS = cmd_args.epochs
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -122,7 +126,7 @@ else:
 	else:
 		repr = 'pre'
 
-model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -137,8 +141,8 @@ if not should_train_visual:
 	if use_random_model:
 		cnn_model_file_name = './dumps/random/random_model'
 		learnt_random_model = '{}/{}_{}_model'.format(current_model_dir,model_id, EPOCHS - 1)
-    learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
-    learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
+		learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
+		learnt_random_model = learnt_random_model.replace(dataset_name, pretrain_dataset_name)
 
 	else:
 		to_load_model_id = model_id.replace('pre', 'train')
@@ -149,7 +153,7 @@ if not should_train_visual:
 
 starting_epoch = 0
 
-wandb.init(project="referential-shapes", name=model_id)
+wandb.init(project="referential-shapes-clean", name=to_load_model_id)
 
 wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
@@ -165,7 +169,7 @@ wandb.config.use_random_model = use_random_model
 wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
 wandb.config.repr = repr
-wandb.config.exp_id = model_id[6:]
+wandb.config.exp_id = to_load_model_id[6:]
 
 ################# Print info ####################
 print('========================================')
@@ -249,6 +253,7 @@ else:
 	n_pretrained_image_features, _t, _v, test_data = load_pretrained_features_zero_shot(
 		target_features_folder_name,
 		distractors_features_folder_name,
+		target_shapes_dataset,
 		BATCH_SIZE,
 		K)
 	assert n_pretrained_image_features == n_image_features
@@ -311,22 +316,23 @@ _) = evaluate(model, test_data, test_word_counts, target_test_metadata, debuggin
 
 print()
 print('Test accuracy: {}'.format(test_acc_meter.avg))
+wandb.log({'Zero shot acc':test_acc_meter.avg})
 
-if should_dump:
-	best_epoch = model_file_name.split('_')[-2]
+# if should_dump:
+# 	best_epoch = model_file_name.split('_')[-2]
 
-	pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_rsa_sr_meter, open('{}/{}_{}_test_rsa_sr_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_rsa_si_meter, open('{}/{}_{}_test_rsa_si_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_rsa_ri_meter, open('{}/{}_{}_test_rsa_ri_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_topological_sim_meter, open('{}/{}_{}_test_topological_sim_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
-	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_loss_meter, open('{}/{}_{}_test_losses_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_acc_meter, open('{}/{}_{}_test_accuracy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_entropy_meter, open('{}/{}_{}_test_entropy_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_distinctness_meter, open('{}/{}_{}_test_distinctness_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_rsa_sr_meter, open('{}/{}_{}_test_rsa_sr_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_rsa_si_meter, open('{}/{}_{}_test_rsa_si_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_rsa_ri_meter, open('{}/{}_{}_test_rsa_ri_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_topological_sim_meter, open('{}/{}_{}_test_topological_sim_meter.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	pickle.dump(test_messages, open('{}/{}_{}_test_messages.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
-	if should_dump_indices:
-		pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
+# 	if should_dump_indices:
+# 		pickle.dump(test_indices, open('{}/{}_{}_test_imageIndices.p'.format(current_model_dir, model_id, best_epoch), 'wb'))
 
-	if should_covert_to_words:
-		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))
+# 	if should_covert_to_words:
+# 		dump_words(current_model_dir, test_messages, idx_to_word, '{}_{}_test_messages'.format(model_id, best_epoch))

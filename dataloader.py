@@ -110,7 +110,7 @@ def load_pretrained_features(folder,shapes_dataset, batch_size, k, use_symbolic=
 
 # This is for loading previously obtained features
 # This needs to grab targets from the unseen dataset and distractors from unseen + seen grabbed uniformly
-def load_pretrained_features_zero_shot(target_folder, distractors_folder, batch_size, k):
+def load_pretrained_features_zero_shot(target_folder, distractors_folder, shapes_dataset, batch_size, k):
 	target_train_features = np.load('{}/train_features.npy'.format(target_folder))
 	target_valid_features = np.load('{}/valid_features.npy'.format(target_folder))
 	target_test_features = np.load('{}/test_features.npy'.format(target_folder))
@@ -123,10 +123,10 @@ def load_pretrained_features_zero_shot(target_folder, distractors_folder, batch_
 
 	assert target_valid_features.shape[-1] == distractors_valid_features.shape[-1]
 
-	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
-	valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
-	test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
-	noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
+	train_metadata = pickle.load(open('shapes/{}/train.large.metadata.p'.format(shapes_dataset), 'rb'))
+	valid_metadata = pickle.load(open('shapes/{}/val.metadata.p'.format(shapes_dataset), 'rb'))
+	test_metadata = pickle.load(open('shapes/{}/test.metadata.p'.format(shapes_dataset), 'rb'))
+	noise_metadata = pickle.load(open('shapes/{}/noise.metadata.p'.format(shapes_dataset), 'rb'))
 
 	train_dataset = ImageFeaturesDatasetZeroShot(target_train_features, distractors_train_features)
 	valid_dataset = ImageFeaturesDatasetZeroShot(target_valid_features, distractors_valid_features, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std
