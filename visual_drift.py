@@ -121,7 +121,7 @@ else:
 		repr = 'random'
 	else:
 		repr = 'pre'
-		
+
 repr = 'classifier'
 model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
 
@@ -144,23 +144,23 @@ if not should_train_visual:
 
 starting_epoch = 0
 
-wandb.init(project="referential-shapes", name=model_id)
-
-wandb.config.K = K #int(sys.argv[1])
-wandb.config.seed = seed #int(sys.argv[1])
-wandb.config.vocab_size = vocab_size #int(sys.argv[2])
-wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
-wandb.config.dataset_name = dataset_name #sys.argv[4]
-wandb.config.vl_loss_weight = vl_loss_weight #float(sys.argv[5])
-wandb.config.bound_weight = bound_weight #float(sys.argv[6])
-wandb.config.use_symbolic_input = use_symbolic_input
-wandb.config.should_train_visual = should_train_visual
-wandb.config.cnn_model_file_name = cnn_model_file_name
-wandb.config.use_random_model = use_random_model
-wandb.config.rsa_sampling = rsa_sampling
-wandb.config.noise_strength = noise_strength
-wandb.config.repr = repr
-wandb.config.exp_id = model_id[6:]
+# wandb.init(project="referential-shapes", name=model_id)
+#
+# wandb.config.K = K #int(sys.argv[1])
+# wandb.config.seed = seed #int(sys.argv[1])
+# wandb.config.vocab_size = vocab_size #int(sys.argv[2])
+# wandb.config.max_sentence_length = max_sentence_length #int(sys.argv[3])
+# wandb.config.dataset_name = dataset_name #sys.argv[4]
+# wandb.config.vl_loss_weight = vl_loss_weight #float(sys.argv[5])
+# wandb.config.bound_weight = bound_weight #float(sys.argv[6])
+# wandb.config.use_symbolic_input = use_symbolic_input
+# wandb.config.should_train_visual = should_train_visual
+# wandb.config.cnn_model_file_name = cnn_model_file_name
+# wandb.config.use_random_model = use_random_model
+# wandb.config.rsa_sampling = rsa_sampling
+# wandb.config.noise_strength = noise_strength
+# wandb.config.repr = repr
+# wandb.config.exp_id = model_id[6:]
 
 ################# Print info ####################
 print('========================================')
@@ -275,7 +275,7 @@ model.cnn.load_state_dict(cnn_state)
 # 	vl_loss_weight, bound_weight,
 # 	should_train_visual, rsa_sampling,
 # 	use_gpu, K, use_distractors_in_sender)
-wandb.watch(model)
+# wandb.watch(model)
 
 # model.load_state_dict(cnn_state)
 

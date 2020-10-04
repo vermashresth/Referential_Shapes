@@ -19,10 +19,10 @@ def load_images(folder, batch_size, k):
 	valid_filename = '{}/val.input.npy'.format(folder)
 	test_filename = '{}/test.input.npy'.format(folder)
 	noise_filename = '{}/noise.input.npy'.format(folder)
-	train_metadata = pickle.load(open('{}/train.large.onehot_metadata.p'.format(folder), 'rb'))
-	valid_metadata = pickle.load(open('{}/val.onehot_metadata.p'.format(folder), 'rb'))
-	test_metadata = pickle.load(open('{}/test.onehot_metadata.p'.format(folder), 'rb'))
-	noise_metadata = pickle.load(open('{}/noise.onehot_metadata.p'.format(folder), 'rb'))
+	train_metadata = pickle.load(open('{}/train.large.metadata.p'.format(folder), 'rb'))
+	valid_metadata = pickle.load(open('{}/val.metadata.p'.format(folder), 'rb'))
+	test_metadata = pickle.load(open('{}/test.metadata.p'.format(folder), 'rb'))
+	noise_metadata = pickle.load(open('{}/noise.metadata.p'.format(folder), 'rb'))
 
 	train_dataset = ImageDataset(train_filename)
 	valid_dataset = ImageDataset(valid_filename, mean=train_dataset.mean, std=train_dataset.std) # All features are normalized with mean and std

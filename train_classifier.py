@@ -129,8 +129,16 @@ elif dataset_type == 4: #
 
 
 starting_epoch = 0
+repr = 'classifier'
+# cnn_model_file_name = 'dumps/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0_9_model'
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
 
-wandb.init(project="referential-shapes", name=model_id)
+dumps_dir = './dumps'
+
+cnn_model_dir = '{}/{}'.format(dumps_dir, model_id)
+cnn_model_file_name = '{}/{}_{}_model'.format(cnn_model_dir, model_id, EPOCHS-1)
+
+wandb.init(project="referential-shapes-clean", name=model_id)
 
 wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
@@ -146,7 +154,7 @@ wandb.config.use_random_model = use_random_model
 wandb.config.rsa_sampling = rsa_sampling
 wandb.config.noise_strength = noise_strength
 wandb.config.repr = repr
-wandb.config.exp_id = model_id[6:]
+wandb.config.exp_id = model_id[6:]+'-onlyeval-{}'.format(only_eval)
 
 ################# Print info ####################
 print('========================================')
@@ -200,14 +208,7 @@ wandb.watch(model)
 
 print("model created")
 
-repr = 'classifier'
-# cnn_model_file_name = 'dumps/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0_9_model'
-model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
 
-dumps_dir = './dumps'
-
-cnn_model_dir = '{}/{}'.format(dumps_dir, model_id)
-cnn_model_file_name = '{}/{}_{}_model'.format(cnn_model_id, model_id, EPOCHS)
 
 if only_eval:
     cnn_state = torch.load(cnn_model_file_name)
@@ -273,6 +274,7 @@ for epoch in range(5):  # loop over the dataset multiple times
                   _,pred = probs.max(-1)
                   acc = sum(labels.detach().numpy()==pred.detach().numpy())/labels.size(0)
                   print("eval acc ", acc)
+                  wandb.log({'Eval Acc Drift':acc})
                   break
             if not only_eval:
               model.train()

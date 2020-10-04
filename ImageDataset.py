@@ -142,7 +142,7 @@ class ImagesSampler(Sampler):
             arr[0] = t
             distractors = random.sample(range(self.n), self.k)
             for id, d in enumerate(distractors):
-                while np.array_equal(self.meta_source[t],self.meta_source[distractors[id]]):
+                while np.array_equal(np.array(self.meta_source)[t], np.array(self.meta_source)[distractors[id]]):
                     distractors[id] = random.sample(range(self.n), 1)
 
             arr[1:] = np.array(distractors)
