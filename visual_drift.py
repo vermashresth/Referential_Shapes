@@ -60,8 +60,11 @@ cmd_parser.add_argument('--vl_loss_weight', type=float, default=vl_loss_weight)
 cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
+cmd_parser.add_argument('--use_bullet', type=int, default=0)
+cmd_parser.add_argument('--epochs', type=int, default=EPOCHS)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
-cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
+
+cmd_parser.add_argument('--use_distractors_in_sender', type=int, default=use_distractors_in_sender)
 cmd_parser.add_argument('--freeze', action='store_true', default=freeze)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
@@ -88,6 +91,8 @@ rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
 freeze = cmd_args.freeze
+EPOCHS = cmd_args.epochs
+use_bullet = cmd_args.use_bullet
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -116,8 +121,9 @@ else:
 		repr = 'random'
 	else:
 		repr = 'pre'
-
-model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
+		
+repr = 'classifier'
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
 
 dumps_dir = './dumps'
 if should_dump and not os.path.exists(dumps_dir):
@@ -372,32 +378,32 @@ for epoch in range(EPOCHS):
 	language_entropy_meters.append(epoch_lang_entropy_meter)
 	word_counts += epoch_w_counts
 
-	(eval_loss_meter,
-	eval_acc_meter,
-	eval_messages,
-	eval_indices,
-	_w_counts,
-	eval_entropy_meter,
-	eval_distinctness_meter,
-	eval_rsa_sr_meter,
-	eval_rsa_si_meter,
-	eval_rsa_ri_meter,
-	eval_topological_sim_meter,
-	eval_posdis_meter,
-	eval_bosdis_meter,
-	eval_lang_entropy_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
-
-	eval_losses_meters.append(eval_loss_meter)
-	eval_accuracy_meters.append(eval_acc_meter)
-	eval_entropy_meters.append(eval_entropy_meter)
-	eval_distinctness_meters.append(eval_distinctness_meter)
-	eval_rsa_sr_meters.append(eval_rsa_sr_meter)
-	eval_rsa_si_meters.append(eval_rsa_si_meter)
-	eval_rsa_ri_meters.append(eval_rsa_ri_meter)
-	eval_topological_sim_meters.append(eval_topological_sim_meter)
-	eval_posdis_meters.append(eval_posdis_meter)
-	eval_bosdis_meters.append(eval_bosdis_meter)
-	eval_language_entropy_meters.append(eval_lang_entropy_meter)
+	# (eval_loss_meter,
+	# eval_acc_meter,
+	# eval_messages,
+	# eval_indices,
+	# _w_counts,
+	# eval_entropy_meter,
+	# eval_distinctness_meter,
+	# eval_rsa_sr_meter,
+	# eval_rsa_si_meter,
+	# eval_rsa_ri_meter,
+	# eval_topological_sim_meter,
+	# eval_posdis_meter,
+	# eval_bosdis_meter,
+	# eval_lang_entropy_meter) = evaluate(model, valid_data, eval_word_counts, valid_metadata, debugging)
+	#
+	# eval_losses_meters.append(eval_loss_meter)
+	# eval_accuracy_meters.append(eval_acc_meter)
+	# eval_entropy_meters.append(eval_entropy_meter)
+	# eval_distinctness_meters.append(eval_distinctness_meter)
+	# eval_rsa_sr_meters.append(eval_rsa_sr_meter)
+	# eval_rsa_si_meters.append(eval_rsa_si_meter)
+	# eval_rsa_ri_meters.append(eval_rsa_ri_meter)
+	# eval_topological_sim_meters.append(eval_topological_sim_meter)
+	# eval_posdis_meters.append(eval_posdis_meter)
+	# eval_bosdis_meters.append(eval_bosdis_meter)
+	# eval_language_entropy_meters.append(eval_lang_entropy_meter)
 
 	(_,
 	noise_acc_meter,
@@ -415,21 +421,21 @@ for epoch in range(EPOCHS):
 	_) = evaluate(model, noise_data, eval_word_counts, noise_metadata, debugging)
 	noise_accuracy_meters.append(noise_acc_meter)
 
-	print('Epoch {}, average train loss: {}, average val loss: {} \n average accuracy: {}, average val accuracy: {}, average noise accuracy: {} \n'.format(
-		e, losses_meters[e].avg, eval_losses_meters[e].avg, accuracy_meters[e].avg, eval_accuracy_meters[e].avg, noise_accuracy_meters[e].avg))
-	if rsa_sampling > 0:
-		print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {} \n Topological sim: {} \n'.format(
-			epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
-		print(' Train posdis: {}, Train posdis: {}, Eval posdis: {}, Eval bosdis: {}'.format(
-			epoch_bosdis_meter.avg, epoch_bosdis_meter.avg, eval_posdis_meter.avg, eval_bosdis_meter.avg))
-		print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
-			eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
+	print('Epoch {}, average train loss: {}, \n average accuracy: {},, average noise accuracy: {} \n'.format(
+		e, losses_meters[e].avg, accuracy_meters[e].avg, noise_accuracy_meters[e].avg))
+	# if rsa_sampling > 0:
+	# 	print('	RSA sender-receiver: {}, RSA sender-input: {}, RSA receiver-input: {} \n Topological sim: {} \n'.format(
+	# 		epoch_rsa_sr_meter.avg, epoch_rsa_si_meter.avg, epoch_rsa_ri_meter.avg, epoch_topological_sim_meter.avg))
+		# print(' Train posdis: {}, Train posdis: {}, Eval posdis: {}, Eval bosdis: {}'.format(
+		# 	epoch_bosdis_meter.avg, epoch_bosdis_meter.avg, eval_posdis_meter.avg, eval_bosdis_meter.avg))
+		# print('	Eval RSA sender-receiver: {}, Eval RSA sender-input: {}, Eval RSA receiver-input: {}\n Eval Topological sim: {}\n'.format(
+		# 	eval_rsa_sr_meter.avg, eval_rsa_si_meter.avg, eval_rsa_ri_meter.avg, eval_topological_sim_meter.avg))
 
-	wandb.log({'Epoch':e, 'average train loss': losses_meters[e].avg, 'average val loss': eval_losses_meters[e].avg, 'average accuracy': accuracy_meters[e].avg, 'average val accuracy': eval_accuracy_meters[e].avg, 'average noise accuracy': noise_accuracy_meters[e].avg})
-	wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg})
-	wandb.log({'Topological sim':epoch_topological_sim_meter.avg, 'Posdis':epoch_bosdis_meter.avg, 'Bosdis':epoch_bosdis_meter.avg})
-	wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg})
-	wandb.log({'Eval Topological sim':eval_topological_sim_meter.avg, 'Eval Posdis':eval_posdis_meter.avg, 'Eval Bosdis':eval_bosdis_meter.avg})
+	# wandb.log({ 'average noise accuracy': noise_accuracy_meters[e].avg}, commit=False)
+	# wandb.log({'RSA sender-receiver': epoch_rsa_sr_meter.avg, 'RSA sender-input': epoch_rsa_si_meter.avg, 'RSA receiver-input':epoch_rsa_ri_meter.avg})
+	# wandb.log({'Topological sim':epoch_topological_sim_meter.avg, 'Posdis':epoch_bosdis_meter.avg, 'Bosdis':epoch_bosdis_meter.avg})
+	# wandb.log({'RSA sender-receiver': eval_rsa_sr_meter.avg, 'RSA sender-input': eval_rsa_si_meter.avg, 'RSA receiver-input':eval_rsa_ri_meter.avg})
+	# wandb.log({'Eval Topological sim':eval_topological_sim_meter.avg, 'Eval Posdis':eval_posdis_meter.avg, 'Eval Bosdis':eval_bosdis_meter.avg})
 
 	seconds_current_epoch = time.time() - epoch_start_time
 	print('    (Took {} seconds)'.format(seconds_current_epoch))
@@ -443,16 +449,16 @@ for epoch in range(EPOCHS):
 
 		# Dump messages every epoch
 		pickle.dump(messages, open('{}/{}_{}_messages.p'.format(current_model_dir, model_id, e), 'wb'))
-		pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
+		# pickle.dump(eval_messages, open('{}/{}_{}_eval_messages.p'.format(current_model_dir, model_id, e), 'wb'))
 
 		# Dump indices as often as messages
 		if should_dump_indices:
 			pickle.dump(indices, open('{}/{}_{}_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
-			pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
+			# pickle.dump(eval_indices, open('{}/{}_{}_eval_imageIndices.p'.format(current_model_dir, model_id, e), 'wb'))
 
 		if should_covert_to_words:
 			dump_words(current_model_dir, messages, idx_to_word, '{}_{}_messages'.format(model_id, e))
-			dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
+			# dump_words(current_model_dir, eval_messages, idx_to_word, '{}_{}_eval_messages'.format(model_id, e))
 
 	# if es.is_converged:
 	# 	print("Converged in epoch {}".format(e))
@@ -469,26 +475,26 @@ if is_loss_nan:
 	should_dump = False
 	should_evaluate_best = False
 
-if should_dump:
-	# Dump latest stats
-	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(language_entropy_meters, open('{}/{}_{}_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
-	pickle.dump(eval_language_entropy_meters, open('{}/{}_{}_eval_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# if should_dump:
+# 	# Dump latest stats
+# 	pickle.dump(losses_meters, open('{}/{}_{}_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_losses_meters, open('{}/{}_{}_eval_losses_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(accuracy_meters, open('{}/{}_{}_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_accuracy_meters, open('{}/{}_{}_eval_accuracy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(entropy_meters, open('{}/{}_{}_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_entropy_meters, open('{}/{}_{}_eval_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(distinctness_meters, open('{}/{}_{}_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_distinctness_meters, open('{}/{}_{}_eval_distinctness_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(rsa_sr_meters, open('{}/{}_{}_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_rsa_sr_meters, open('{}/{}_{}_eval_rsa_sr_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(rsa_si_meters, open('{}/{}_{}_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_rsa_si_meters, open('{}/{}_{}_eval_rsa_si_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(rsa_ri_meters, open('{}/{}_{}_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_rsa_ri_meters, open('{}/{}_{}_eval_rsa_ri_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(topological_sim_meters, open('{}/{}_{}_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_topological_sim_meters, open('{}/{}_{}_eval_topological_sim_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(language_entropy_meters, open('{}/{}_{}_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
+# 	pickle.dump(eval_language_entropy_meters, open('{}/{}_{}_eval_language_entropy_meters.p'.format(current_model_dir, model_id, e), 'wb'))
 
 
 # Evaluate best model on test data

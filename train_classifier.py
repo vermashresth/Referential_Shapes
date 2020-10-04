@@ -48,8 +48,8 @@ rsa_sampling = 50
 seed = 42
 use_symbolic_input = False
 noise_strength = 0
-use_distractors_in_sender = False
-only_eval = False
+use_distractors_in_sender = 0
+only_eval = 0
 
 cmd_parser = argparse.ArgumentParser()
 cmd_parser.add_argument('--K', type=int, default=K)
@@ -60,9 +60,11 @@ cmd_parser.add_argument('--vl_loss_weight', type=float, default=vl_loss_weight)
 cmd_parser.add_argument('--bound_weight', type=float, default=bound_weight)
 cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
+cmd_parser.add_argument('--use_bullet', type=int, default=0)
+cmd_parser.add_argument('--epochs', type=int, default=EPOCHS)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
-cmd_parser.add_argument('--use_distractors_in_sender', action='store_true', default=use_distractors_in_sender)
-cmd_parser.add_argument('--only_eval', action='store_true', default=only_eval)
+cmd_parser.add_argument('--use_distractors_in_sender', type=int, default=use_distractors_in_sender)
+cmd_parser.add_argument('--only_eval', type=int, default=only_eval)
 
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
@@ -89,6 +91,8 @@ rsa_sampling = cmd_args.rsa_sampling
 noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
 only_eval = cmd_args.only_eval
+EPOCHS = cmd_args.epochs
+use_bullet = cmd_args.use_bullet
 
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
@@ -110,18 +114,18 @@ elif dataset_type == 4: #
 # 	assert should_train_visual or cnn_model_file_name is not None, 'Need stored CNN weights if not training visual features'
 
 # Get model id using a timestamp
-repr = 'classifier'
 
-model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
 
-dumps_dir = './dumps'
-if should_dump and not os.path.exists(dumps_dir):
-	os.mkdir(dumps_dir)
-
-current_model_dir = '{}/{}'.format(dumps_dir, model_id)
-
-if should_dump and not os.path.exists(current_model_dir):
-	os.mkdir(current_model_dir)
+# model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, noise_strength)
+#
+# dumps_dir = './dumps'
+# if should_dump and not os.path.exists(dumps_dir):
+# 	os.mkdir(dumps_dir)
+#
+# current_model_dir = '{}/{}'.format(dumps_dir, model_id)
+#
+# if should_dump and not os.path.exists(current_model_dir):
+# 	os.mkdir(current_model_dir)
 
 
 starting_epoch = 0
@@ -195,7 +199,16 @@ model = MyModel(cnnmodel, n_image_features, out_classes)
 wandb.watch(model)
 
 print("model created")
-cnn_model_file_name = 'dumps/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0_9_model'
+
+repr = 'classifier'
+# cnn_model_file_name = 'dumps/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0/seed-0_K-1_repr-train_distractor-aware-False_data-even-samepos_noise-0_9_model'
+model_id = 'seed-{}_K-{}_repr-{}_distractor-aware-{}_data-{}-bullet-{}_noise-{}'.format(seed, K, repr, use_distractors_in_sender, dataset_name, use_bullet, noise_strength)
+
+dumps_dir = './dumps'
+
+cnn_model_dir = '{}/{}'.format(dumps_dir, model_id)
+cnn_model_file_name = '{}/{}_{}_model'.format(cnn_model_id, model_id, EPOCHS)
+
 if only_eval:
     cnn_state = torch.load(cnn_model_file_name)
     cnn_state = {k[4:]:v for k,v in cnn_state.items() if 'cnn' in k}

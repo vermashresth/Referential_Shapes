@@ -1,4 +1,4 @@
-total_seeds = 6
+total_seeds = 3
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -49,9 +49,9 @@ def show_images(images, path, cols = 1, titles = None):
     plt.savefig(path, bbox_inches='tight',pad_inches = 0 )
 
 
-for use_bullet in range(1):
-    for use_different_targets in range(1,2):
-        for use_distractors_in_sender in range(1,2):
+for use_bullet in range(0):
+    for use_different_targets in range(0):
+        for use_distractors_in_sender in range(0):
             images = []
             for i in range(6):
                 s, r, s_d, r_d=[], [], [], []
