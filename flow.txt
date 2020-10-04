@@ -6,4 +6,11 @@ instuctions: run debug.sh
 	train mode : pretraining: yes or no or random (3)
 	
 
-task 2: 
+task 1.2: zero shot acc of trained, pretrained, random
+
+task 2: look at cam of intrained (distractor aware, agnostic)
+			      (bullet, shapes)
+	subtask: Avg over multiple runs, for a single item
+
+
+task 3: 

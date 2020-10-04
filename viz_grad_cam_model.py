@@ -215,7 +215,7 @@ class Model(nn.Module):
 		self.n_rsa_samples = n_rsa_samples
 		self.use_distractors_in_sender = use_distractors_in_sender
 		self.n_image_features = n_image_features
-		
+
 		if self.should_train_cnn:
 			self.cnn = CNN(n_image_features)
 		if self.use_distractors_in_sender:
@@ -298,12 +298,22 @@ class Model(nn.Module):
 				target_sender = target_out
 				target_receiver = target_out
 			else:
+				cnn_copy = type(self.cnn)(self.n_image_features) # get a new instance
+				cnn_copy.load_state_dict(self.cnn.state_dict()) # copy weights and stuff
+				cnn_copy.cuda()
 				# Extract features
-				target_sender = self.cnn(target[:, 0, :, :, :])
-				target_receiver = self.cnn(target[:, 1, :, :, :])
+				if self.mode == 's_t':
+					target_sender = self.cnn(target[:, 0, :, :, :])
+					target_receiver = self.cnn(target[:, 1, :, :, :])
+				else:
+					target_sender = torch.Tensor(cnn_copy(target[:, 0, :, :, :]).detach().cpu().numpy()).cuda()
+					target_receiver = torch.Tensor(cnn_copy(target[:, 1, :, :, :]).detach().cpu().numpy()).cuda()
 
 				# Just use the first distractor
-				distractors = [self.cnn(d[:, 0, :, :, :]) for d in distractors]
+				if self.mode in ['r_d', 's_d']:
+					distractors = [self.cnn(d[:, 0, :, :, :]) for d in distractors]
+				else:
+					distractors = [torch.Tensor(cnn_copy(d[:, 0, :, :, :]).detach().cpu().numpy()).cuda() for d in distractors]
 		else:
 			if not use_different_targets:
 				target_sender = target
@@ -336,7 +346,11 @@ class Model(nn.Module):
 		# Loss calculation
 		loss = 0
 		if self.mode == 'r_t':
-			target_receiver = self.cnn(target).view(batch_size, 1, -1)
+			if not use_different_targets:
+				target_receiver = self.cnn(target).view(batch_size, 1, -1)
+			else:
+				target_receiver = self.cnn(target[:, 1, :, :, :]).view(batch_size, 1, -1)
+
 		else:
 			target_receiver = target_receiver.view(batch_size, 1, -1)
 		r_transform = r_transform.view(batch_size, -1, 1)

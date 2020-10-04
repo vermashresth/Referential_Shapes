@@ -136,7 +136,7 @@ if not should_train_visual:
 
 starting_epoch = 0
 
-wandb.init(project="referential-shapes", name=model_id)
+wandb.init(project="referential-shapes-clean", name=model_id)
 
 wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
@@ -362,6 +362,7 @@ class simpleModel(nn.Module):
     return vocab_scores_tensor
 images = []
 ct = 0
+random.seed(0)
 for batch in valid_data: # or anything else you want to do
   if ct==6:
     break
@@ -376,12 +377,13 @@ for batch in valid_data: # or anything else you want to do
   heatmap_s, result = visualize_cam(mask, target)
   model.zero_grad()
 
-  sm = simpleModel(model, target, word_counts, 's_d')
-  sm.eval()
-  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
-  mask, _ = gradcam(distractors[0])
-  heatmap_s_d, result = visualize_cam(mask, distractors[0])
-  model.zero_grad()
+  if use_distractors_in_sender:
+	  sm = simpleModel(model, target, word_counts, 's_d')
+	  sm.eval()
+	  gradcam = GradCAM(sm, sm.model.cnn.conv_net[6])
+	  mask, _ = gradcam(distractors[0])
+	  heatmap_s_d, result = visualize_cam(mask, distractors[0])
+	  model.zero_grad()
 
   sm = simpleModel(model, distractors, word_counts, 'r_t')
   sm.train()
@@ -396,25 +398,57 @@ for batch in valid_data: # or anything else you want to do
   mask, _ = gradcam(distractors[0])
   heatmap_r_d, result = visualize_cam(mask, distractors[0])
 
-  # print(valid_data.dataset.mean, valid_data.dataset.std)
-  np.save('image2.npy', target.cpu().numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0])
-  np.save('distractor2.npy', distractors[0].cpu().numpy()*valid_data.dataset.std[0]+valid_data.dataset.mean[0])
-  np.save('result2.npy', result)
-  np.save('heatmap2_s.npy', heatmap_s)
-  np.save('heatmap2_r.npy', heatmap_r)
-  np.save('heatmap2_r_d.npy', heatmap_r_d)
+  use_different_targets = len(target.size())==5
+
+  suff = 'i-{}-seed-{}-daware-{}-difftar-{}-bullet-{}'.format(ct, seed, use_distractors_in_sender, use_different_targets, use_bullet)
 
   from torchvision.utils import make_grid
   from torchvision import transforms
   import matplotlib.pyplot as plt
+  if not use_different_targets:
+    np.save('figs/target-{}.npy'.format(suff), target[0].cpu().numpy())
+    np.save('figs/dist-{}.npy'.format(suff), distractors[0][0].cpu().numpy())
+    np.save('figs/heatmap_s-{}.npy'.format(suff), heatmap_s)
+    np.save('figs/heatmap_r-{}.npy'.format(suff), heatmap_r)
+    np.save('figs/heatmap_r_d-{}.npy'.format(suff), heatmap_r_d)
+    images.extend([torch.Tensor(target.cpu().numpy()[0]),
+                  torch.Tensor(distractors[0].cpu()[0].numpy()),
+                  torch.Tensor(heatmap_s),
+                  torch.Tensor(heatmap_s_d),
+                  torch.Tensor(heatmap_r),
+                  torch.Tensor(heatmap_r_d)])
+  else:
+    np.save('figs/target-{}.npy'.format(suff), target[0].cpu().numpy()[0])
+    np.save('figs/target_r-{}.npy'.format(suff), target[0].cpu().numpy()[1])
+    np.save('figs/dist-{}.npy'.format(suff), distractors[0][0].cpu().numpy())
+    np.save('figs/heatmap_s-{}.npy'.format(suff), heatmap_s)
+    np.save('figs/heatmap_r-{}.npy'.format(suff), heatmap_r)
+    np.save('figs/heatmap_r_d-{}.npy'.format(suff), heatmap_r_d)
+    images.extend([torch.Tensor(target.cpu().numpy()[0][0]),
+                  torch.Tensor(target.cpu().numpy()[0][1]),
+                  torch.Tensor(distractors[0].cpu()[0].numpy()[0]),
+                  torch.Tensor(heatmap_s),
+                  torch.Tensor(heatmap_r),
+                  torch.Tensor(heatmap_r_d)])
+  if use_distractors_in_sender:
+	  images.extend([torch.Tensor(heatmap_s_d)])
+	  np.save('figs/heatmap_s_d-{}.npy'.format(suff), heatmap_s_d)
 
-  images.extend([torch.Tensor(target.cpu().numpy()[0]),
-                torch.Tensor(distractors[0].cpu()[0].numpy()),
-                torch.Tensor(heatmap_s),
-				torch.Tensor(heatmap_s_d),
-                torch.Tensor(heatmap_r),
-                torch.Tensor(heatmap_r_d)])
   ct+=1
-grid_image = make_grid(images, nrow=6)
+def treat(img):
+  img = img.transpose(1,2,0)
+  # np.min(img)
+  plt.figure(figsize=(10, 10))
+  return plt.imshow(img)
+
+# wandb.log({'target':treat(target.cpu().numpy()[0]))
+# wandb.log({'distractor':distractors[0].cpu()[0].numpy()})
+# wandb.log()
+base = 5
+if use_distractors_in_sender:
+	base+=1
+if use_different_targets:
+  base+=1
+grid_image = make_grid(images, nrow=base)
 img = grid_image.numpy()
 np.save('grid.npy', img)
