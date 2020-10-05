@@ -13,4 +13,9 @@ task 2: look at cam of intrained (distractor aware, agnostic)
 	subtask: Avg over multiple runs, for a single item
 
 
-task 3: 
+task 3: visual drift
+	train classifier
+	use classifier weights and train on referential game
+	test modified weights on cassificiation
+
+

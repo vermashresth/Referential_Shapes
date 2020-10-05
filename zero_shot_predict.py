@@ -152,7 +152,8 @@ if not should_train_visual:
 		cnn_model_file_name = '{}/{}_{}_model'.format(to_load_current_model_dir, to_load_model_id, EPOCHS - 1)
 
 starting_epoch = 0
-
+if use_random_model:
+	to_load_model_id = model_id
 wandb.init(project="referential-shapes-clean", name=to_load_model_id)
 
 wandb.config.K = K #int(sys.argv[1])
