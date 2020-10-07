@@ -66,8 +66,8 @@ cmd_parser.add_argument('--noise_strength', type=int, default=noise_strength)
 cmd_parser.add_argument('--dataset_type', type=int, default=dataset_type)
 cmd_parser.add_argument('--pop_size', type=int, default=pop_size)
 cmd_parser.add_argument('--use_symbolic_input', action='store_true', default=use_symbolic_input)
-cmd_parser.add_argument('--use_distractors_in_sender', type=int,, default=use_distractors_in_sender)
-cmd_parser.add_argument('--use_bullet', type=int,, default=use_bullet)
+cmd_parser.add_argument('--use_distractors_in_sender', type=int, default=use_distractors_in_sender)
+cmd_parser.add_argument('--use_bullet', type=int, default=use_bullet)
 
 cmd_parser.add_argument('--use_random_model', type=int, default=use_random_model)
 cmd_parser.add_argument('--should_train_visual', type=int, default=should_train_visual)
@@ -322,7 +322,7 @@ should_evaluate_best = False
 train_start_time = time.time()
 print("init done, start epochs")
 # Train
-for epoch in range(EPOCHS):
+for epoch in range(EPOCHS*pop_size):
 	epoch_start_time = time.time()
 
 	e = epoch + starting_epoch
@@ -340,7 +340,7 @@ for epoch in range(EPOCHS):
 	epoch_topological_sim_meter,
 	epoch_posdis_meter,
 	epoch_bosdis_meter,
-	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging)
+	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging, epoch%pop_size==0)
 	print("done one epoch")
 	model.shuffle_pair()
 	if math.isnan(epoch_loss_meter.avg):

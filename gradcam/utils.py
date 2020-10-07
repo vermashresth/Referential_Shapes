@@ -1,6 +1,6 @@
 import cv2
 import torch
-
+import numpy as np
 layer_finders = {}
 
 
@@ -21,8 +21,18 @@ def visualize_cam(mask, img, alpha=1.0):
         heatmap (torch.tensor): heatmap img shape of (3, H, W)
         result (torch.tensor): synthesized GradCAM result of same shape with heatmap.
     """
+    my_mask = mask.cpu().numpy()
+    print(np.max(my_mask), np.min(my_mask))
+    # my_mask =
+    thresh = 0.35 * np.max(my_mask)
+    filter_mask = my_mask.squeeze()<thresh
     heatmap = (255 * mask.squeeze()).type(torch.uint8).cpu().numpy()
     heatmap = cv2.applyColorMap(heatmap, cv2.COLORMAP_JET)
+    heatmap[filter_mask] = 0
+    ksize = (3, 3)
+
+    # Using cv2.blur() method
+    heatmap = cv2.blur(heatmap, ksize)
     heatmap = torch.from_numpy(heatmap).permute(2, 0, 1).float().div(255)
     b, g, r = heatmap.split(1)
     heatmap = torch.cat([r, g, b]) * alpha

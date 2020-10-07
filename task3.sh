@@ -21,7 +21,7 @@ do
    while [ $seed -le $total_seeds ]
    do
     python train_classifier.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
-    python visual_drift.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+    python visual_drift.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
     python train_classifier.py --only_eval 1 --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
     ((seed++))
@@ -50,8 +50,9 @@ do
    seed=0
    while [ $seed -le $total_seeds ]
    do
-    python test.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
-    python viz_grad_cam.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 0 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+     python train_classifier.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+     python visual_drift.py --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
+     python train_classifier.py --only_eval 1 --dataset_type $dataset_type --seed $seed --K 1 --noise_strength 0 --should_train_visual 1 --use_bullet $use_bullet --use_distractors_in_sender $use_distractors_in_sender --epochs $epochs
 
     ((seed++))
    done

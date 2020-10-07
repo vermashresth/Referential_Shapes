@@ -400,7 +400,7 @@ for batch in valid_data: # or anything else you want to do
 
   use_different_targets = len(target.size())==5
 
-  suff = 'i-{}-seed-{}-daware-{}-difftar-{}-bullet-{}'.format(ct, seed, use_distractors_in_sender, use_different_targets, use_bullet)
+  suff = 'i-{}-seed-{}-daware-{}-difftar-{}-bullet-{}'.format(ct, seed, use_distractors_in_sender, int(use_different_targets), use_bullet)
 
   from torchvision.utils import make_grid
   from torchvision import transforms
@@ -414,7 +414,6 @@ for batch in valid_data: # or anything else you want to do
     images.extend([torch.Tensor(target.cpu().numpy()[0]),
                   torch.Tensor(distractors[0].cpu()[0].numpy()),
                   torch.Tensor(heatmap_s),
-                  torch.Tensor(heatmap_s_d),
                   torch.Tensor(heatmap_r),
                   torch.Tensor(heatmap_r_d)])
   else:
