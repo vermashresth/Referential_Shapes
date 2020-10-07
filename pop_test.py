@@ -94,7 +94,7 @@ noise_strength = cmd_args.noise_strength
 use_distractors_in_sender = cmd_args.use_distractors_in_sender
 pop_size = cmd_args.pop_size
 use_bullet = cmd_args.use_bullet
-
+EPOCHS = cmd_args.epochs
 if dataset_type == 0: # Even, same pos
 	shapes_dataset = 'get_dataset_balanced_incomplete_noise_{}_3_3'.format(noise_strength)
 	dataset_name = 'even-samepos'
@@ -144,7 +144,7 @@ if not should_train_visual:
 
 starting_epoch = 0
 
-wandb.init(project="referential-shapes", name=model_id)
+wandb.init(project="referential-shapes-clean", name=model_id)
 
 wandb.config.K = K #int(sys.argv[1])
 wandb.config.seed = seed #int(sys.argv[1])
@@ -340,7 +340,7 @@ for epoch in range(EPOCHS*pop_size):
 	epoch_topological_sim_meter,
 	epoch_posdis_meter,
 	epoch_bosdis_meter,
-	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging, epoch%pop_size==0)
+	epoch_lang_entropy_meter) = train_one_epoch(model, train_data, optimizer, word_counts, train_metadata, debugging, epoch%pop_size==pop_size-1)
 	print("done one epoch")
 	model.shuffle_pair()
 	if math.isnan(epoch_loss_meter.avg):

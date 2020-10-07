@@ -113,9 +113,9 @@ def run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging, c
 		language_entropy_meter)
 
 
-def train_one_epoch(model, data, optimizer, word_counts, onehot_metadata, debugging=False):
+def train_one_epoch(model, data, optimizer, word_counts, onehot_metadata, debugging=False, commit=True):
 	model.train()
-	return run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging)
+	return run_epoch(model, data, word_counts, optimizer, onehot_metadata, debugging, commit)
 
 def evaluate(model, data, word_counts, onehot_metadata, debugging=False):
 	model.eval()
