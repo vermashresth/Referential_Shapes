@@ -304,6 +304,10 @@ class Model(nn.Module):
 				# Extract features
 				if self.mode == 's_t':
 					target_sender = self.cnn(target[:, 0, :, :, :])
+					target_receiver = torch.Tensor(cnn_copy(target[:, 1, :, :, :]).detach().cpu().numpy()).cuda()
+
+        elif self.mode == 'r_t':
+					target_sender = torch.Tensor(cnn_copy(target[:, 0, :, :, :]).detach().cpu().numpy()).cuda()
 					target_receiver = self.cnn(target[:, 1, :, :, :])
 				else:
 					target_sender = torch.Tensor(cnn_copy(target[:, 0, :, :, :]).detach().cpu().numpy()).cuda()

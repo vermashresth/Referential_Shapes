@@ -60,7 +60,7 @@ class GradCAM:
         return self.activations['value'].shape[2:]
 
     def forward(self, input, class_idx=None, retain_graph=False):
-        b, c, h, w = input.size()
+        b, c, h, w = input.size()[-4:]
 
         logit = self.model_arch(input)
         # if class_idx is None:
