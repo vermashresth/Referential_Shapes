@@ -1,4 +1,6 @@
-# How to use
+# Repo for analysing visual learning in referential games
+
+## How to use
 
 There are four bash scripts to run experiments with multiple seeds.
 task1.sh : For generating dataset and getting communication accuracy, noise accuracy, top sim, generalization accuracy (zeroshot) for all game combinations.
